@@ -1,5 +1,6 @@
 const limine = @import("limine");
 const std = @import("std");
+const framebuffer = @import("framebuffer.zig");
 
 // The Limine requests can be placed anywhere, but it is important that
 // the compiler does not optimise them away, so, usually, they should
@@ -17,6 +18,17 @@ inline fn done() noreturn {
     }
 }
 
+fn tries(a: *limine.FrameBuffer) void {
+    const fbuffer = a.*;
+    framebuffer.clear(fbuffer);
+    for (0..30) |h| {
+        for (0..framebuffer.width) |w| {
+            const pixel_offset = h * framebuffer.pitch + w * 4;
+            @as(*u32, @ptrCast(@alignCast(framebuffer.address + pixel_offset))).* = 0xFFFF0000;
+        }
+    }
+}
+
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     // Ensure the bootloader actually understands our base revision (see spec).
@@ -31,16 +43,12 @@ export fn _start() callconv(.C) noreturn {
         }
 
         // Get the first framebuffer's information.
-        const framebuffer = framebuffer_response.framebuffers()[0];
+        const fbuffer = framebuffer_response.framebuffers()[0];
 
-        for (0..100) |i| {
-            // Calculate the pixel offset using the framebuffer information we obtained above.
-            // We skip `i` scanlines (pitch is provided in bytes) and add `i * 4` to skip `i` pixels forward.
-            const pixel_offset = i * framebuffer.pitch + i * 4;
+        framebuffer.clear(fbuffer);
 
-            // Write 0xFFFFFFFF to the provided pixel offset to fill it white.
-            @as(*u32, @ptrCast(@alignCast(framebuffer.address + pixel_offset))).* = 0xFFFFFFFF;
-        }
+        framebuffer.fillrect_naive(fbuffer, 255, 0, 0, 128, 128);
+        //framebuffer.fillrect(fbuffer, 255, 0, 0, 128, 128);
     }
 
     // We're done, just hang...
