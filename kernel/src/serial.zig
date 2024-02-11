@@ -55,7 +55,5 @@ pub fn print(str: []const u8) void {
 
 pub fn println(str: []const u8) void {
     print(str);
-
     putchar('\n');
-    putchar(0x0);
 }

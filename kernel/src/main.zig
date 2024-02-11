@@ -13,7 +13,7 @@ pub export var framebuffer_request: limine.FramebufferRequest = .{};
 // See specification for further info.
 pub export var base_revision: limine.BaseRevision = .{ .revision = 1 };
 
-inline fn done() noreturn {
+inline fn halt() noreturn {
     while (true) {
         asm volatile ("hlt");
     }
@@ -23,27 +23,27 @@ inline fn done() noreturn {
 export fn _start() callconv(.C) noreturn {
     // Ensure the bootloader actually understands our base revision (see spec).
     if (!base_revision.is_supported()) {
-        done();
+        halt();
     }
 
+    // Serial Port
     serial.initialize();
     serial.println("Serial Port Initialized");
 
-    // Ensure we got a framebuffer.
+    // Framebuffer
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
-            done();
+            halt();
         }
+        serial.println("Framebuffer Initialized");
 
         // Get the first framebuffer's information.
         const fbuffer = framebuffer_response.framebuffers()[0];
 
         framebuffer.clear(fbuffer);
-
-        //framebuffer.fillrect_naive(fbuffer, 255, 0, 0, 256, 256);
-        framebuffer.fillrect(fbuffer, 255, 0, 0, 128, 128);
+        framebuffer.fillrect(fbuffer, framebuffer.COLOR_RED, .{ .width = 128, .height = 128 });
     }
 
     // We're done, just hang...
-    done();
+    halt();
 }
