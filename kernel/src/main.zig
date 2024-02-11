@@ -1,6 +1,7 @@
 const limine = @import("limine");
 const std = @import("std");
 const framebuffer = @import("framebuffer.zig");
+const serial = @import("serial.zig");
 
 // The Limine requests can be placed anywhere, but it is important that
 // the compiler does not optimise them away, so, usually, they should
@@ -24,6 +25,9 @@ export fn _start() callconv(.C) noreturn {
     if (!base_revision.is_supported()) {
         done();
     }
+
+    serial.initialize();
+    serial.println("Serial Port Initialized");
 
     // Ensure we got a framebuffer.
     if (framebuffer_request.response) |framebuffer_response| {
