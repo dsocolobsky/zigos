@@ -13,6 +13,8 @@ pub export var framebuffer_request: limine.FramebufferRequest = .{};
 // See specification for further info.
 pub export var base_revision: limine.BaseRevision = .{ .revision = 1 };
 
+pub export var kernel_address_request: limine.KernelAddressRequest = .{};
+
 inline fn halt() noreturn {
     while (true) {
         asm volatile ("hlt");
@@ -42,6 +44,16 @@ export fn _start() callconv(.C) noreturn {
 
         framebuffer.clear(fbuffer);
         framebuffer.fillrect(fbuffer, framebuffer.COLOR_RED, .{ .width = 128, .height = 128 });
+    }
+
+    if (kernel_address_request.response) |response| {
+        serial.print("kernel phy=");
+        serial.print_hex(response.physical_base);
+        serial.print(", virt=");
+        serial.print_hex(response.virtual_base);
+        serial.newline();
+    } else {
+        serial.println("Could not get Kernel Address Response");
     }
 
     // We're done, just hang...

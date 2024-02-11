@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub fn initialize() void {
     return asm volatile (
         \\ .equ PORT, 0x3f8
@@ -45,6 +47,10 @@ pub fn putchar(c: u8) void {
     );
 }
 
+pub fn newline() void {
+    putchar('\n');
+}
+
 pub fn print(str: []const u8) void {
     asm volatile ("movw $0x3f8, %dx");
 
@@ -55,5 +61,21 @@ pub fn print(str: []const u8) void {
 
 pub fn println(str: []const u8) void {
     print(str);
-    putchar('\n');
+    newline();
+}
+
+pub fn print_hex(n: u64) void {
+    var buffer: [24]u8 = undefined;
+    const buf = buffer[0..];
+    const str = std.fmt.bufPrintIntToSlice(
+        buf,
+        n,
+        16,
+        .lower,
+        std.fmt.FormatOptions{},
+    );
+    asm volatile ("movw $0x3f8, %dx");
+    putchar('0');
+    putchar('x');
+    print(str);
 }
