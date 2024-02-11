@@ -1,0 +1,11 @@
+.{
+    .name = "limine-zig-template",
+    .version = "1.0.0",
+    .paths = .{"."},
+    .dependencies = .{
+        .limine = .{
+            .url = "https://github.com/limine-bootloader/limine-zig/archive/7aa3e8d139ea0b8c38ab5e6b990b3b714fcf4e8a.tar.gz",
+            .hash = "1220b444cd87607a63a55a9aca02de8369a7fca9cfa68b1bf88c2af0debf81a8e082",
+        },
+    },
+}
