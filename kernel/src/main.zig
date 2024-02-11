@@ -2,6 +2,7 @@ const limine = @import("limine");
 const std = @import("std");
 const framebuffer = @import("framebuffer.zig");
 const serial = @import("serial.zig");
+const gdt = @import("gdt.zig");
 
 // The Limine requests can be placed anywhere, but it is important that
 // the compiler does not optimise them away, so, usually, they should
@@ -55,6 +56,14 @@ export fn _start() callconv(.C) noreturn {
     } else {
         serial.println("Could not get Kernel Address Response");
     }
+
+    gdt.load_gdt();
+    if (framebuffer_request.response) |framebuffer_response| {
+        const fbuffer = framebuffer_response.framebuffers()[0];
+        framebuffer.fillrect(fbuffer, framebuffer.COLOR_BLUE, .{ .width = 256, .height = 264 });
+    }
+
+    //serial.println("GDT Set up");
 
     // We're done, just hang...
     halt();
