@@ -18,17 +18,6 @@ inline fn done() noreturn {
     }
 }
 
-fn tries(a: *limine.FrameBuffer) void {
-    const fbuffer = a.*;
-    framebuffer.clear(fbuffer);
-    for (0..30) |h| {
-        for (0..framebuffer.width) |w| {
-            const pixel_offset = h * framebuffer.pitch + w * 4;
-            @as(*u32, @ptrCast(@alignCast(framebuffer.address + pixel_offset))).* = 0xFFFF0000;
-        }
-    }
-}
-
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     // Ensure the bootloader actually understands our base revision (see spec).
@@ -47,8 +36,8 @@ export fn _start() callconv(.C) noreturn {
 
         framebuffer.clear(fbuffer);
 
-        framebuffer.fillrect_naive(fbuffer, 255, 0, 0, 128, 128);
-        //framebuffer.fillrect(fbuffer, 255, 0, 0, 128, 128);
+        //framebuffer.fillrect_naive(fbuffer, 255, 0, 0, 256, 256);
+        framebuffer.fillrect(fbuffer, 255, 0, 0, 128, 128);
     }
 
     // We're done, just hang...
