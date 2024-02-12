@@ -14,10 +14,10 @@ const Descriptor = packed struct {
     address: u32,
 };
 
-const Entry = packed struct {
+const Entry = packed struct(u64) {
     limit_0_15: u16,
     base_0_15: u16,
-    base_16_23: u16,
+    base_16_23: u8,
     type: u4,
     s: u1,
     dpl: u2,
@@ -140,14 +140,20 @@ const gdt_descriptor = blk: {
     break :blk output;
 };
 
-pub fn load_gdt() void {
-    const gdt_addr = @as(u32, @truncate(@intFromPtr(&gdt)));
-    serial.println("GDT address:");
-    serial.print_hex(gdt_addr);
+pub fn load_gdt(gdtr: Descriptor) void {
     asm volatile (
-        \\ cli
-        \\ lgdt (%rdi)
+        \\lgdt %[gdtr]
         :
-        : [gdt_addr] "{rdi}" (gdt_addr),
+        : [gdtr] "*p" (&gdtr),
+        : "rax", "rcx", "memory"
     );
+}
+
+pub fn init() void {
+    const descriptor = Descriptor{
+        .length = (GDT_COUNT * @sizeOf(Entry)) - 1,
+        .address = @as(u32, @truncate(@intFromPtr(&gdt))),
+    };
+
+    load_gdt(descriptor);
 }

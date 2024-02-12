@@ -1,5 +1,5 @@
 #display_library: sdl
-#display_library: term
+display_library: term
 magic_break: enabled=1
 port_e9_hack: enabled=1
 mouse: enabled=1
