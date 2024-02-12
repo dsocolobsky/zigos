@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const serial = @import("serial.zig");
 
 const GDT_COUNT = 30;
@@ -133,16 +135,38 @@ pub const gdt: [GDT_COUNT]Entry = blk: {
     break :blk output;
 };
 
+// Comptime test
+comptime {
+    if (GDT_COUNT * @sizeOf(Entry) != 30 * 8) {
+        @compileError("size of GDT is wrong");
+    }
+}
+
+pub fn get_gdt_value() Descriptor {
+    var ret: Descriptor = undefined;
+    asm volatile ("sgdt %[ret]"
+        : [ret] "=m" (ret),
+    );
+    return ret;
+}
+
 pub fn load_gdt(gdtr: Descriptor) void {
     const gdt_addr = @as(u64, @intFromPtr(&gdt));
     serial.println("GDT address:");
-    serial.print_hex(gdt_addr);
-    asm volatile (
-        \\lgdt %[gdtr]
+    serial.print_hex(gdt_addr); // 0xffffffff80001718
+    asm volatile ("lgdt %[gdtr]"
         :
-        : [gdtr] "*p" (&gdtr),
+        : [gdtr] "m" (gdtr),
         : "rax", "rcx", "memory"
     );
+    // 0x08 == KERNEL_CODE_SEL (1) << 3
+    // asm volatile (
+    //     \\push $0x08
+    //     \\lea end_gdt(%rip), %rax
+    //     \\push %rax
+    //     \\lretq
+    //     \\end_gdt:
+    // );
 }
 
 pub fn init() void {

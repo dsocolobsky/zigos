@@ -34,7 +34,13 @@ export fn _start() callconv(.C) noreturn {
     serial.println("Serial Port Initialized");
 
     gdt.init();
-    serial.println("GDT Set up");
+    const gdt_reg = gdt.get_gdt_value();
+    serial.println("GDT Set up, address:");
+    serial.print_hex(gdt_reg.address);
+    serial.newline();
+    serial.println("length:");
+    serial.print_dec(gdt_reg.length);
+    serial.newline();
 
     // Framebuffer
     if (framebuffer_request.response) |framebuffer_response| {
