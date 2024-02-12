@@ -33,52 +33,52 @@ const Entry = packed struct(u64) {
 pub const gdt: [GDT_COUNT]Entry = blk: {
     var output: [GDT_COUNT]Entry = undefined;
     @memset(&output, Entry{
-        .limit_0_15 = 0x0000,
         .base_0_15 = 0x0000,
         .base_16_23 = 0x0000,
+        .base_24_31 = 0x00,
+        .limit_0_15 = 0x0000,
+        .limit_16_19 = 0x0,
         .type = 0x0,
         .s = 0x0,
         .dpl = 0x0,
         .p = 0x0,
-        .limit_16_19 = 0x0,
         .avl = 0x0,
         .l = 0x0,
         .db = 0x0,
         .g = 0x0,
-        .base_24_31 = 0x00,
     });
 
     // Obs we don't need to set the null descriptor, as it's already zeroed out
 
     output[GDT_IDX_KERN_CODE] = Entry{
-        .limit_0_15 = 0xFFFF,
-        .limit_16_19 = 0xF,
         .base_0_15 = 0x0000,
         .base_16_23 = 0x0000,
         .base_24_31 = 0x00,
+        .limit_0_15 = 0xFFFF,
+        .limit_16_19 = 0xF,
         .type = 0xA,
         .s = 1,
         .dpl = 0,
         .p = 1,
         .avl = 1,
-        .l = 0,
-        .db = 1,
+        .l = 1,
+        .db = 0,
         .g = 1,
     };
 
     output[GDT_IDX_KERN_DATA] = Entry{
-        .limit_0_15 = 0xFFFF,
-        .limit_16_19 = 0xF,
         .base_0_15 = 0x0000,
         .base_16_23 = 0x0000,
         .base_24_31 = 0x00,
+        .limit_0_15 = 0xFFFF,
+        .limit_16_19 = 0xF,
         .type = 0x2,
         .s = 1,
         .dpl = 0,
         .p = 1,
         .avl = 1,
-        .l = 0,
-        .db = 1,
+        .l = 1,
+        .db = 0,
         .g = 1,
     };
 
@@ -93,8 +93,8 @@ pub const gdt: [GDT_COUNT]Entry = blk: {
         .dpl = 3,
         .p = 1,
         .avl = 1,
-        .l = 0,
-        .db = 1,
+        .l = 1,
+        .db = 0,
         .g = 1,
     };
 
@@ -109,8 +109,8 @@ pub const gdt: [GDT_COUNT]Entry = blk: {
         .dpl = 3,
         .p = 1,
         .avl = 1,
-        .l = 0,
-        .db = 1,
+        .l = 1,
+        .db = 0,
         .g = 1,
     };
 
@@ -125,7 +125,7 @@ pub const gdt: [GDT_COUNT]Entry = blk: {
     //     .dpl = 0,
     //     .p = 1,
     //     .avl = 0,
-    //     .l = 0,
+    //     .l = 1,
     //     .db = 0,
     //     .g = 0,
     // };
