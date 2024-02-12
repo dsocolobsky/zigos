@@ -79,3 +79,17 @@ pub fn print_hex(n: u64) void {
     putchar('x');
     print(str);
 }
+
+pub fn print_dec(n: u64) void {
+    var buffer: [24]u8 = undefined;
+    const buf = buffer[0..];
+    const str = std.fmt.bufPrintIntToSlice(
+        buf,
+        n,
+        10,
+        .lower,
+        std.fmt.FormatOptions{},
+    );
+    asm volatile ("movw $0x3f8, %dx");
+    print(str);
+}

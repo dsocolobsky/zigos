@@ -33,6 +33,9 @@ export fn _start() callconv(.C) noreturn {
     serial.initialize();
     serial.println("Serial Port Initialized");
 
+    gdt.init();
+    serial.println("GDT Set up");
+
     // Framebuffer
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
@@ -56,14 +59,6 @@ export fn _start() callconv(.C) noreturn {
     } else {
         serial.println("Could not get Kernel Address Response");
     }
-
-    gdt.load_gdt();
-    if (framebuffer_request.response) |framebuffer_response| {
-        const fbuffer = framebuffer_response.framebuffers()[0];
-        framebuffer.fillrect(fbuffer, framebuffer.COLOR_BLUE, .{ .width = 256, .height = 264 });
-    }
-
-    //serial.println("GDT Set up");
 
     // We're done, just hang...
     halt();
