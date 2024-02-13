@@ -158,12 +158,12 @@ pub fn init() void {
 
     asm volatile (
         \\lgdt %[gdt]
-        \\mov %[ds], %rax
-        // \\mov %rax, %ds
-        // \\movq %rax, %es
-        // \\movq %rax, %fs
-        // \\movq %rax, %gs
-        // \\movq %rax, %ss
+        \\xor %rax, %rax
+        \\mov %rax, %ds
+        \\movq %rax, %es
+        \\movq %rax, %fs
+        \\movq %rax, %gs
+        \\movq %rax, %ss
         \\pushq %[cs]
         \\lea 1f(%rip), %rax
         \\pushq %rax
@@ -171,8 +171,8 @@ pub fn init() void {
         \\1:
         :
         : [gdt] "*p" (&descriptor),
-          [ds] "i" (GDT_IDX_KERN_DATA << 3),
-          [cs] "i" (GDT_IDX_KERN_CODE << 3),
+          //[ds] "i" (GDT_IDX_USER_DATA << 3),
+          //[cs] "i" (GDT_IDX_KERN_CODE << 3),
         : "memory"
     );
 }
