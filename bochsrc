@@ -1,4 +1,4 @@
-#display_library: sdl
+#display_library: sdl2
 display_library: term
 magic_break: enabled=1
 port_e9_hack: enabled=1

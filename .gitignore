@@ -5,3 +5,4 @@ deps.zig
 external
 limine
 *.iso
+bochs.log

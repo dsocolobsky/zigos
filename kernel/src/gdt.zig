@@ -2,14 +2,14 @@ const std = @import("std");
 
 const serial = @import("serial.zig");
 
-const GDT_COUNT = 30;
+const GDT_COUNT = 5;
 
-const GDT_IDX_NULL_DESC = 0x0000;
-const GDT_IDX_KERN_CODE = 0x0001;
-const GDT_IDX_KERN_DATA = 0x0001;
-const GDT_IDX_USER_CODE = 0x0003;
-const GDT_IDX_USER_DATA = 0x0004;
-const GDT_IDX_TSS = 0x0005;
+const GDT_IDX_NULL_DESC = 0;
+const GDT_IDX_KERN_CODE = 1;
+const GDT_IDX_KERN_DATA = 2;
+const GDT_IDX_USER_CODE = 3;
+const GDT_IDX_USER_DATA = 4;
+const GDT_IDX_TSS = 5;
 
 const Descriptor = packed struct {
     length: u16,
@@ -137,7 +137,7 @@ pub const gdt: [GDT_COUNT]Entry = blk: {
 
 // Comptime test
 comptime {
-    if (GDT_COUNT * @sizeOf(Entry) != 30 * 8) {
+    if (GDT_COUNT * @sizeOf(Entry) != 5 * 8) {
         @compileError("size of GDT is wrong");
     }
 }
@@ -150,30 +150,29 @@ pub fn get_gdt_value() Descriptor {
     return ret;
 }
 
-pub fn load_gdt(gdtr: Descriptor) void {
-    const gdt_addr = @as(u64, @intFromPtr(&gdt));
-    serial.println("GDT address:");
-    serial.print_hex(gdt_addr); // 0xffffffff80001718
-    asm volatile ("lgdt %[gdtr]"
-        :
-        : [gdtr] "m" (gdtr),
-        : "rax", "rcx", "memory"
-    );
-    // 0x08 == KERNEL_CODE_SEL (1) << 3
-    // asm volatile (
-    //     \\push $0x08
-    //     \\lea end_gdt(%rip), %rax
-    //     \\push %rax
-    //     \\lretq
-    //     \\end_gdt:
-    // );
-}
-
 pub fn init() void {
     const descriptor = Descriptor{
         .length = (GDT_COUNT * @sizeOf(Entry)) - 1,
-        .address = @as(u32, @truncate(@intFromPtr(&gdt))),
+        .address = @as(u64, @intFromPtr(&gdt)),
     };
 
-    load_gdt(descriptor);
+    asm volatile (
+        \\lgdt %[gdt]
+        // \\mov %[ds], %rax
+        // \\movq %rax, %ds
+        // \\movq %rax, %es
+        // \\movq %rax, %fs
+        // \\movq %rax, %gs
+        // \\movq %rax, %ss
+        // \\pushq %[cs]
+        // \\lea 1f(%rip), %rax
+        // \\pushq %rax
+        // \\lretq
+        // \\1:
+        :
+        : [gdt] "*p" (&descriptor),
+          [ds] "i" (GDT_IDX_KERN_DATA << 3),
+          [cs] "i" (GDT_IDX_KERN_CODE << 3),
+        : "memory"
+    );
 }
