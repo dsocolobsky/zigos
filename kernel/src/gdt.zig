@@ -11,7 +11,7 @@ const GDT_IDX_USER_CODE = 3;
 const GDT_IDX_USER_DATA = 4;
 const GDT_IDX_TSS = 5;
 
-const Descriptor = packed struct {
+const Descriptor = packed struct(u80) {
     length: u16,
     address: u64,
 };
