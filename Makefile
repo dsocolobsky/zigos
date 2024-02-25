@@ -36,7 +36,7 @@ all-hdd: $(IMAGE_NAME).hdd
 
 .PHONY: run
 run: $(IMAGE_NAME).iso
-	qemu-system-x86_64 -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d -S -s -d int -no-reboot -no-shutdown -monitor stdio
+	qemu-system-x86_64 -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d -S -s -d int -no-reboot -no-shutdown -monitor stdio -D qemu.log -M smm=off
 
 .PHONY: run-uefi
 run-uefi: ovmf $(IMAGE_NAME).iso
