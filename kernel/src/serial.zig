@@ -1,95 +1,101 @@
 const std = @import("std");
+const outb = @import("asm.zig").outb;
+const inb = @import("asm.zig").inb;
 
-pub fn initialize() void {
-    return asm volatile (
-        \\ .equ PORT, 0x3f8
-        \\ init_serial:
-        \\ movb $0x00, %al
-        \\ movw $PORT + 1, %dx
-        \\ outb %al, (%dx)
-        \\ movb $0x80, %al
-        \\ movw $PORT + 3, %dx
-        \\ outb %al, (%dx)
-        \\ movb $0x03, %al
-        \\ movw $PORT, %dx
-        \\ outb %al, (%dx)
-        \\ movb $0x00, %al
-        \\ movw $PORT + 1, %dx
-        \\ outb %al, (%dx)
-        \\ movb $0x03, %al
-        \\ movw $PORT + 3, %dx
-        \\ outb %al, (%dx)
-        \\ movb $0xC7, %al
-        \\ movw $PORT + 2, %dx
-        \\ outb %al, (%dx)
-        \\ movb $0x0B, %al
-        \\ movw $PORT + 4, %dx
-        \\ outb %al, (%dx)
-        \\ movb $0x1E, %al
-        \\ movw $PORT + 4, %dx
-        \\ outb %al, (%dx)
-        \\ movb $0xAE, %al
-        \\ movw $PORT, %dx
-        \\ outb %al, (%dx)
-        \\ movw $PORT, %dx
-        \\ inb (%dx), %al
-        \\ movb $0x0F, %al
-        \\ movw $PORT + 4, %dx
-        \\ outb %al, (%dx)
-        \\ movl $0, %eax
-    );
+pub fn print_err(comptime format: []const u8, args: anytype) void {
+    print("[ERR] " ++ format ++ "\n", args);
 }
 
-pub fn putchar(c: u8) void {
-    asm volatile ("outb %al, (%dx)"
-        :
-        : [c] "{al}" (c),
-    );
+pub fn print_ok(comptime format: []const u8, args: anytype) void {
+    print("[OK] " ++ format ++ "\n", args);
 }
 
-pub fn newline() void {
-    putchar('\n');
+pub fn print(comptime format: []const u8, args: anytype) void {
+    _ = Serial.writer().print(format, args) catch {};
 }
 
-pub fn print(str: []const u8) void {
-    asm volatile ("movw $0x3f8, %dx");
+pub fn println(comptime format: []const u8, args: anytype) void {
+    _ = Serial.writer().print(format ++ "\n", args) catch {};
+}
 
-    for (str) |c| {
-        putchar(c);
+pub fn puts(comptime msg: []const u8) void {
+    _ = println(msg, .{});
+}
+
+pub const WriteOption = struct { linenumber: bool = false };
+
+pub const Com = struct {
+    const COM1 = 0x3F8;
+    const COM2 = 0x2F8;
+    const COM3 = 0x3E8;
+    const COM4 = 0x2E8;
+    const COM5 = 0x5F8;
+    const COM6 = 0x4F8;
+    const COM7 = 0x5E8;
+    const COM8 = 0x4E8;
+};
+
+pub const Serial = struct {
+    pub fn init() !Serial {
+        const com: u16 = Com.COM1;
+
+        outb(com + 1, 0x00);
+        outb(com + 3, 0x80);
+        outb(com, 0x03);
+        outb(com + 1, 0);
+        outb(com + 3, 0x03);
+        outb(com + 2, 0xC7);
+        outb(com + 4, 0x0B);
+        outb(com + 4, 0x1E);
+        outb(com, 0xAE);
+
+        if (inb(com) != 0xAE) {
+            return error.SerialFault;
+        }
+
+        outb(com + 4, 0x0F);
+
+        return Serial{};
     }
-}
 
-pub fn println(str: []const u8) void {
-    print(str);
-    newline();
-}
+    pub fn is_transmit_empty() u8 {
+        return inb(Com.COM1 + 5) & 0x20;
+    }
 
-pub fn print_hex(n: u64) void {
-    var buffer: [24]u8 = undefined;
-    const buf = buffer[0..];
-    const str = std.fmt.bufPrintIntToSlice(
-        buf,
-        n,
-        16,
-        .lower,
-        std.fmt.FormatOptions{},
-    );
-    asm volatile ("movw $0x3f8, %dx");
-    putchar('0');
-    putchar('x');
-    print(str);
-}
+    pub fn is_serial_receiving() u8 {
+        return inb(Com.COM1 + 5) & 1;
+    }
 
-pub fn print_dec(n: u64) void {
-    var buffer: [24]u8 = undefined;
-    const buf = buffer[0..];
-    const str = std.fmt.bufPrintIntToSlice(
-        buf,
-        n,
-        10,
-        .lower,
-        std.fmt.FormatOptions{},
-    );
-    asm volatile ("movw $0x3f8, %dx");
-    print(str);
-}
+    pub fn read() !u8 {
+        while (Serial.is_serial_receiving() == 0) {}
+        return inb(Com.COM1);
+    }
+
+    pub fn write(value: u8) void {
+        while (Serial.is_transmit_empty() == 0) {}
+        outb(Com.COM1, value);
+    }
+
+    pub fn write_array(values: []const u8) usize {
+        var written: usize = 0;
+        for (values) |value| {
+            written += 1;
+            Serial.write(value);
+        }
+
+        return written;
+    }
+
+    pub fn writeWithContext(self: Serial, values: []const u8) WriteError!usize {
+        _ = self;
+
+        return Serial.write_array(values);
+    }
+
+    const WriteError = error{CannotWrite};
+
+    const SerialWriter = std.io.Writer(Serial, WriteError, writeWithContext);
+    pub fn writer() SerialWriter {
+        return .{ .context = Serial{} };
+    }
+};

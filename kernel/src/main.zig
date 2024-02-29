@@ -30,25 +30,24 @@ export fn _start() callconv(.C) noreturn {
         halt();
     }
 
-    // Serial Port
-    serial.initialize();
-    serial.println("Serial Port Initialized");
+    _ = serial.Serial.init() catch {
+        asm volatile ("hlt");
+    };
+    serial.puts("Serial port initialized");
 
     gdt.init();
     const gdt_reg = gdt.get_gdt_value();
-    serial.println("GDT Set up, address:");
-    serial.print_hex(gdt_reg.address);
-    serial.newline();
-    serial.println("length:");
-    serial.print_dec(gdt_reg.length);
-    serial.newline();
+    serial.println("GDT Set up, address: 0x{x}", .{gdt_reg.address});
+
+    idt.init();
+    serial.puts("Interrupts Initialized");
 
     // Framebuffer
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
             halt();
         }
-        serial.println("Framebuffer Initialized");
+        serial.puts("Framebuffer Initialized");
 
         // Get the first framebuffer's information.
         const fbuffer = framebuffer_response.framebuffers()[0];
@@ -58,17 +57,10 @@ export fn _start() callconv(.C) noreturn {
     }
 
     if (kernel_address_request.response) |response| {
-        serial.print("kernel phy=");
-        serial.print_hex(response.physical_base);
-        serial.print(", virt=");
-        serial.print_hex(response.virtual_base);
-        serial.newline();
+        serial.println("kernel phy: 0x{x}", .{response.physical_base});
     } else {
-        serial.println("Could not get Kernel Address Response");
+        serial.puts("Could not get Kernel Address Response");
     }
-
-    idt.init();
-    serial.println("Interrupts Initialized");
 
     // We're done, just hang...
     halt();

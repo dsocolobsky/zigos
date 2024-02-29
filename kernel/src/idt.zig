@@ -1,4 +1,6 @@
 const gdt = @import("gdt.zig");
+const pic = @import("pic.zig");
+const serial = @import("serial.zig");
 
 const Entry = packed struct {
     isr_low: u16, // lower 16 bits of ISR address
@@ -32,7 +34,7 @@ pub const Interrupt = packed struct {
 
 export fn interrupt_handler(rsp: u64) callconv(.C) u64 {
     //const reg: *Interrupt = @ptrFromInt(rsp);
-    //reg.log();
+    serial.println("Interrupt ocurried: {d}", .{rsp});
 
     while (true) {}
 
@@ -60,6 +62,8 @@ pub fn init() void {
         :
         : [idtr] "*p" (&idtr),
     );
+
+    pic.Remap();
 
     asm volatile ("sti");
 }
