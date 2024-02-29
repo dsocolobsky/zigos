@@ -19,7 +19,9 @@ pub fn build(b: *std.build.Builder) !void {
     target.cpu_features_add.addFeature(@intFromEnum(Features.soft_float));
 
     // Build the kernel itself.
-    const optimize = b.standardOptimizeOption(.{});
+    const optimize = b.standardOptimizeOption(.{
+        .preferred_optimize_mode = std.builtin.OptimizeMode.Debug,
+    });
     const limine = b.dependency("limine", .{});
     const kernel = b.addExecutable(.{
         .name = "kernel",

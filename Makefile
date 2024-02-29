@@ -25,7 +25,7 @@ $(eval $(call DEFAULT_VAR,HOST_LDFLAGS,$(DEFAULT_HOST_LDFLAGS)))
 override DEFAULT_HOST_LIBS :=
 $(eval $(call DEFAULT_VAR,HOST_LIBS,$(DEFAULT_HOST_LIBS)))
 
-override DEFAULT_ZIGFLAGS := -Doptimize=ReleaseSafe
+override DEFAULT_ZIGFLAGS := -Doptimize=Debug
 $(eval $(call DEFAULT_VAR,ZIGFLAGS,$(DEFAULT_ZIGFLAGS)))
 
 .PHONY: all
