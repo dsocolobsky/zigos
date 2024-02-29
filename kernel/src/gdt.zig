@@ -5,13 +5,13 @@ const tss = @import("tss.zig");
 
 const GDT_COUNT = 7;
 
-const GDT_IDX_NULL_DESC = 0;
-const GDT_IDX_KERN_CODE = 1;
-const GDT_IDX_KERN_DATA = 2;
-const GDT_IDX_USER_CODE = 3;
-const GDT_IDX_USER_DATA = 4;
-const GDT_IDX_TSS_LO = 5;
-const GDT_IDX_TSS_HI = 6;
+pub const GDT_IDX_NULL_DESC = 0;
+pub const GDT_IDX_KERN_CODE = 1;
+pub const GDT_IDX_KERN_DATA = 2;
+pub const GDT_IDX_USER_CODE = 3;
+pub const GDT_IDX_USER_DATA = 4;
+pub const GDT_IDX_TSS_LO = 5;
+pub const GDT_IDX_TSS_HI = 6;
 
 const Descriptor = packed struct(u80) {
     length: u16,

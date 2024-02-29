@@ -3,6 +3,7 @@ const std = @import("std");
 const framebuffer = @import("framebuffer.zig");
 const serial = @import("serial.zig");
 const gdt = @import("gdt.zig");
+const idt = @import("idt.zig");
 
 // The Limine requests can be placed anywhere, but it is important that
 // the compiler does not optimise them away, so, usually, they should
@@ -65,6 +66,9 @@ export fn _start() callconv(.C) noreturn {
     } else {
         serial.println("Could not get Kernel Address Response");
     }
+
+    idt.init();
+    serial.println("Interrupts Initialized");
 
     // We're done, just hang...
     halt();

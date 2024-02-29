@@ -1,5 +1,17 @@
 const std = @import("std");
 
+pub fn build_nasm(comptime path: []const u8, comptime name: []const u8, exe: *std.Build.Step.Compile) !void {
+    var alloc = std.heap.GeneralPurposeAllocator(.{}){};
+    const output = "./zig-cache/nasm/" ++ name ++ ".o";
+    var child = std.process.Child.init(
+        &[_][]const u8{ "nasm", path, "-f", "elf64", "-w+all", "-Werror", "-o", output },
+        alloc.allocator(),
+    );
+    _ = try child.spawnAndWait();
+
+    exe.addObjectFile(std.Build.LazyPath{ .path = output });
+}
+
 pub fn build(b: *std.build.Builder) !void {
     // Define a freestanding x86_64 cross-compilation target.
     var target: std.zig.CrossTarget = .{
@@ -32,7 +44,10 @@ pub fn build(b: *std.build.Builder) !void {
     kernel.code_model = .kernel;
     kernel.addModule("limine", limine.module("limine"));
     kernel.setLinkerScriptPath(.{ .path = "linker.ld" });
-    kernel.pie = true;
+    kernel.pie = false;
+
+    std.fs.cwd().makePath("./zig-cache/nasm") catch {};
+    try build_nasm("./src/interrupts.s", "interrupts", kernel);
 
     b.installArtifact(kernel);
 }
