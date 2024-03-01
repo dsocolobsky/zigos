@@ -141,7 +141,10 @@ pub fn init() void {
         : [idtptr] "*p" (&idtptr),
     );
 
-    pic.Remap();
+    pic.remap();
+    pic.maskAll();
+    pic.clearKeyboardMask();
+    //pic.remap();
     //pic.maskAll();
     //pic.clearAllMasks();
 
