@@ -73,7 +73,7 @@ pub const Serial = struct {
 
     pub fn write(value: u8) void {
         while (Serial.is_transmit_empty() == 0) {}
-        outb(Com.COM1, value);
+        outb(0xE9, value);
     }
 
     pub fn write_array(values: []const u8) usize {
