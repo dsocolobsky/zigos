@@ -55,12 +55,22 @@ pub fn SetMask(irq_line: u8) void {
 }
 
 pub fn ClearMask(irq_line: u8) void {
-    const port = if (irq_line < 8) {
-        PIC1_DATA;
-    } else {
-        PIC2_DATA;
-    };
+    var port: u16 = PIC1_DATA;
 
-    const value = inb(port) & ~(1 << irq_line % 8);
+    const irq_line_mod: u8 = irq_line % 8;
+    const value = inb(port) & ~(@as(u1, 1) << irq_line_mod);
     outb(port, value);
+}
+
+pub fn maskAll() void {
+    outb(PIC1_DATA, 0xFF);
+    outb(PIC2_DATA, 0xFF);
+}
+
+pub fn clearAllMasks() void {
+    var i: u8 = 0;
+    while (i < 16) {
+        ClearMask(i);
+        i += 1;
+    }
 }
