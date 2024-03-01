@@ -7,3 +7,4 @@ limine
 *.iso
 bochs.log
 qemu.log
+qemu.out

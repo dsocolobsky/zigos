@@ -34,25 +34,14 @@ all: $(IMAGE_NAME).iso
 .PHONY: all-hdd
 all-hdd: $(IMAGE_NAME).hdd
 
+.PHONY: bochs
+bochs: $(IMAGE_NAME).iso
+	bochs -q -f bochsrc
+
 .PHONY: run
 run: $(IMAGE_NAME).iso
-	qemu-system-x86_64 -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d -S -s -d int -no-reboot -no-shutdown -monitor stdio -D qemu.log -M smm=off
-
-.PHONY: run-uefi
-run-uefi: ovmf $(IMAGE_NAME).iso
-	qemu-system-x86_64 -M q35 -m 2G -serial stdio -bios ovmf/OVMF.fd -cdrom $(IMAGE_NAME).iso -boot d
-
-.PHONY: run-hdd
-run-hdd: $(IMAGE_NAME).hdd
-	qemu-system-x86_64 -M q35 -m 2G -serial stdio -hda $(IMAGE_NAME).hdd
-
-.PHONY: run-hdd-uefi
-run-hdd-uefi: ovmf $(IMAGE_NAME).hdd
-	qemu-system-x86_64 -M q35 -m 2G -serial stdio -bios ovmf/OVMF.fd -hda $(IMAGE_NAME).hdd
-
-ovmf:
-	mkdir -p ovmf
-	cd ovmf && curl -Lo OVMF.fd https://retrage.github.io/edk2-nightly/bin/RELEASEX64_OVMF.fd
+	qemu-system-x86_64 -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d -S -s -d int -no-reboot \
+	-no-shutdown -debugcon file:qemu.out -monitor stdio -D qemu.log -M smm=off
 
 limine:
 	git clone https://github.com/limine-bootloader/limine.git --branch=binary --depth=1
