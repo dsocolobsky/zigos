@@ -84,3 +84,11 @@ pub fn clearKeyboardMask() void {
     outb(PIC_MASTER_DATA_PORT, 0xfd);
     outb(PIC_SLAVE_DATA_PORT, 0xff);
 }
+
+// Send end-of-interrupt signal for the given IRQ
+pub fn sendEoi(vector: usize) void {
+    if (vector >= 40) {
+        outb(PIC2, 0x20);
+    }
+    outb(PIC1, 0x20);
+}

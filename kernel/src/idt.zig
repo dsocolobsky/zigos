@@ -1,5 +1,7 @@
 const gdt = @import("gdt.zig");
 const pic = @import("pic.zig");
+const inb = @import("asm.zig").inb;
+const outb = @import("asm.zig").outb;
 const serial = @import("serial.zig");
 
 const IDT_SIZE = 256;
@@ -91,6 +93,8 @@ pub const CPUState = packed struct {
     ss: u64,
 };
 
+pub var handlers: [256]usize = undefined;
+
 pub fn logInterrupt(vector: u64, error_code: u64) void {
     const name = [_][]const u8{
         "Division by zero",
@@ -143,6 +147,12 @@ export fn interrupt_handler(rsp: usize) callconv(.C) u64 {
     const cpu_state: *CPUState = @ptrFromInt(rsp);
     logInterrupt(cpu_state.vector, cpu_state.error_code);
 
+    if (cpu_state.vector == 0x21) {
+        const res = keyboard_interrupt_handler(rsp);
+        pic.sendEoi(cpu_state.vector);
+        return res;
+    }
+
     while (true) {}
 
     return rsp;
@@ -175,4 +185,26 @@ pub fn init() void {
     //pic.clearAllMasks();
 
     asm volatile ("sti");
+}
+
+fn register_interrupt_handler(vector: i64, handler: usize) void {
+    handlers[vector] = handler;
+}
+
+fn retrieve_scancode() u8 {
+    var code: u8 = 0;
+    while (true) {
+        code = inb(0x60);
+        if (code != 0) {
+            break;
+        }
+    }
+    return code;
+}
+
+pub fn keyboard_interrupt_handler(rsp: usize) u64 {
+    const cpu_state: *CPUState = @ptrFromInt(rsp);
+    const code = retrieve_scancode();
+    serial.print("Scancode: {x}\n", .{code});
+    return @intFromPtr(cpu_state);
 }
