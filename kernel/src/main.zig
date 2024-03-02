@@ -37,8 +37,8 @@ export fn _start() callconv(.C) noreturn {
     }
 
     gdt.init();
+    framebuffer.init();
     interrupts.init();
-    _ = framebuffer.init();
 
     // We're done, just hang...
     halt();

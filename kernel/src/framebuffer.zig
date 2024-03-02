@@ -1,6 +1,9 @@
+pub const Framebuffer = @This();
 const limine = @import("limine");
 const serial = @import("serial.zig");
-const Framebuffer = @This();
+
+pub var global_framebuffer: Framebuffer = undefined;
+var tick_color_index: usize = 0;
 
 framebuffer: *limine.Framebuffer = undefined,
 
@@ -13,6 +16,12 @@ pub const COLOR_GREEN = Color{ .r = 0, .g = 255, .b = 0 };
 pub const COLOR_BLUE = Color{ .r = 0, .g = 0, .b = 255 };
 pub const COLOR_BLACK = Color{ .r = 0, .g = 0, .b = 0 };
 pub const COLOR_WHITE = Color{ .r = 255, .g = 255, .b = 255 };
+
+pub const colors = [3]Color{
+    COLOR_RED,
+    COLOR_GREEN,
+    COLOR_BLUE,
+};
 
 pub const Position = struct {
     x: usize,
@@ -58,7 +67,15 @@ pub fn fillrect(self: Framebuffer, color: Color, size: Size) void {
     }
 }
 
-pub fn init() ?Framebuffer {
+pub fn update_panel(self: Framebuffer) void {
+    self.fillrect(
+        colors[tick_color_index],
+        .{ .width = 256, .height = 32 },
+    );
+    tick_color_index = (tick_color_index + 1) % colors.len;
+}
+
+pub fn init() void {
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
             serial.print_err("Error initializing framebuffer", .{});
@@ -69,9 +86,8 @@ pub fn init() ?Framebuffer {
         };
 
         framebuffer.clear();
-        framebuffer.fillrect(COLOR_RED, .{ .width = 128, .height = 128 });
+        framebuffer.update_panel();
 
-        return framebuffer;
+        global_framebuffer = framebuffer;
     }
-    return null;
 }

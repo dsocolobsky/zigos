@@ -54,7 +54,8 @@ pub fn setMask(irq_line: u8) void {
 
 pub fn clearMask(irq_line: u8) void {
     const irq_line_mod: u8 = irq_line % 8;
-    const value = inb(PIC_MASTER_DATA) & ~(@as(u1, 1) << irq_line_mod);
+    const shift = @as(u256, 1) << irq_line_mod;
+    const value = @as(u8, @truncate(inb(PIC_MASTER_DATA) & ~(shift)));
     outb(PIC_MASTER_DATA, value);
 }
 
