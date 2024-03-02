@@ -55,6 +55,7 @@ pub const Serial = struct {
 
         outb(com + 4, 0x0F);
 
+        puts("Serial port initialized");
         return Serial{};
     }
 

@@ -19,7 +19,7 @@ const Descriptor = packed struct(u80) {
 };
 
 // A GDT entry, 64 bits (8 bytes)
-const Entry = packed struct(u64) {
+const GdtEntry = packed struct(u64) {
     limit_0_15: u16,
     base_0_15: u16,
     base_16_23: u8,
@@ -64,7 +64,7 @@ pub var gdt: [GDT_COUNT]u64 = blk: {
 
     // Obs we don't need to set the null descriptor, as it's already zeroed out
 
-    output[GDT_IDX_KERN_CODE] = @bitCast(Entry{
+    output[GDT_IDX_KERN_CODE] = @bitCast(GdtEntry{
         .base_0_15 = 0x0000,
         .base_16_23 = 0x0000,
         .base_24_31 = 0x00,
@@ -80,7 +80,7 @@ pub var gdt: [GDT_COUNT]u64 = blk: {
         .g = 1,
     });
 
-    output[GDT_IDX_KERN_DATA] = @bitCast(Entry{
+    output[GDT_IDX_KERN_DATA] = @bitCast(GdtEntry{
         .base_0_15 = 0x0000,
         .base_16_23 = 0x0000,
         .base_24_31 = 0x00,
@@ -96,7 +96,7 @@ pub var gdt: [GDT_COUNT]u64 = blk: {
         .g = 1,
     });
 
-    output[GDT_IDX_USER_CODE] = @bitCast(Entry{
+    output[GDT_IDX_USER_CODE] = @bitCast(GdtEntry{
         .limit_0_15 = 0xFFFF,
         .limit_16_19 = 0xF,
         .base_0_15 = 0x0000,
@@ -112,7 +112,7 @@ pub var gdt: [GDT_COUNT]u64 = blk: {
         .g = 1,
     });
 
-    output[GDT_IDX_USER_DATA] = @bitCast(Entry{
+    output[GDT_IDX_USER_DATA] = @bitCast(GdtEntry{
         .limit_0_15 = 0xFFFF,
         .limit_16_19 = 0xF,
         .base_0_15 = 0x0000,
@@ -137,7 +137,7 @@ pub var gdt: [GDT_COUNT]u64 = blk: {
 
 // Comptime test
 comptime {
-    if (GDT_COUNT * @sizeOf(Entry) != 7 * 8) {
+    if (GDT_COUNT * @sizeOf(GdtEntry) != 7 * 8) {
         @compileError("size of GDT is wrong");
     }
 }
@@ -152,7 +152,7 @@ pub fn get_gdt_value() Descriptor {
 
 pub fn init() void {
     const descriptor = Descriptor{
-        .length = (GDT_COUNT * @sizeOf(Entry)) - 1,
+        .length = (GDT_COUNT * @sizeOf(GdtEntry)) - 1,
         .address = @as(u64, @intFromPtr(&gdt)),
     };
 
@@ -201,6 +201,11 @@ pub fn init() void {
         : "memory"
     );
 
+    const fetched_descriptor = get_gdt_value();
+    if (fetched_descriptor.address != descriptor.address) {
+        serial.print_err("GDT not loaded correctly", .{});
+    }
+
     // Load the TSS segment
     asm volatile (
         \\mov %[tss_sel], %ax
@@ -208,5 +213,10 @@ pub fn init() void {
         :
         : [tss_sel] "i" (GDT_IDX_TSS_LO << 3),
         : "memory"
+    );
+
+    serial.println(
+        "GDT loaded successfully at 0x{x}",
+        .{descriptor.address},
     );
 }

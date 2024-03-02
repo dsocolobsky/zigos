@@ -3,12 +3,8 @@ const std = @import("std");
 const framebuffer = @import("framebuffer.zig");
 const serial = @import("serial.zig");
 const gdt = @import("gdt.zig");
-const idt = @import("idt.zig");
-
-// The Limine requests can be placed anywhere, but it is important that
-// the compiler does not optimise them away, so, usually, they should
-// be made volatile or equivalent. In Zig, `export var` is what we use.
-pub export var framebuffer_request: limine.FramebufferRequest = .{};
+const interrupts = @import("interrupts.zig");
+const hlt = @import("asm.zig").hlt;
 
 // Set the base revision to 1, this is recommended as this is the latest
 // base revision described by the Limine boot protocol specification.
@@ -19,7 +15,7 @@ pub export var kernel_address_request: limine.KernelAddressRequest = .{};
 
 inline fn halt() noreturn {
     while (true) {
-        asm volatile ("hlt");
+        hlt();
     }
 }
 
@@ -31,36 +27,18 @@ export fn _start() callconv(.C) noreturn {
     }
 
     _ = serial.Serial.init() catch {
-        asm volatile ("hlt");
+        halt();
     };
-    serial.puts("Serial port initialized");
-
-    gdt.init();
-    const gdt_reg = gdt.get_gdt_value();
-    serial.println("GDT Set up, address: 0x{x}", .{gdt_reg.address});
-
-    idt.init();
-    serial.puts("Interrupts Initialized");
-
-    // Framebuffer
-    if (framebuffer_request.response) |framebuffer_response| {
-        if (framebuffer_response.framebuffer_count < 1) {
-            halt();
-        }
-        serial.puts("Framebuffer Initialized");
-
-        // Get the first framebuffer's information.
-        const fbuffer = framebuffer_response.framebuffers()[0];
-
-        framebuffer.clear(fbuffer);
-        framebuffer.fillrect(fbuffer, framebuffer.COLOR_RED, .{ .width = 128, .height = 128 });
-    }
 
     if (kernel_address_request.response) |response| {
         serial.println("kernel phy: 0x{x}", .{response.physical_base});
     } else {
         serial.puts("Could not get Kernel Address Response");
     }
+
+    gdt.init();
+    interrupts.init();
+    _ = framebuffer.init();
 
     // We're done, just hang...
     halt();

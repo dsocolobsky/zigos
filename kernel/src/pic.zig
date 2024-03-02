@@ -2,93 +2,76 @@ const outb = @import("asm.zig").outb;
 const inb = @import("asm.zig").inb;
 const iowait = @import("asm.zig").iowait;
 
-const PIC1 = 0x20; // I/O base address for master PIC
-const PIC2 = 0xA0; // I/O base address for slave PIC
-const PIC1_COMMAND = PIC1; // master PIC command port
-const PIC1_DATA = (PIC1 + 1); // master PIC data port
-const PIC2_COMMAND = PIC2; // slave PIC command port
-const PIC2_DATA = (PIC2 + 1); // slave PIC data port
+const PIC_MASTER_COMMAND = 0x20;
+const PIC_MASTER_DATA = 0x21;
+const PIC_SLAVE_COMMAND = 0xA0;
+const PIC_SLAVE_DATA = 0xA1;
 const ICW4_8086 = 0x01;
 
-const PIC_MASTER_COMMAND_PORT = 0x20;
-const PIC_MASTER_DATA_PORT = 0x21;
-const PIC_SLAVE_COMMAND_PORT = 0xa0;
-const PIC_SLAVE_DATA_PORT = 0xa1;
-
 pub fn remap() void {
-    const mask1 = inb(PIC1_DATA);
-    const mask2 = inb(PIC2_DATA);
+    const mask1 = inb(PIC_MASTER_DATA);
+    const mask2 = inb(PIC_SLAVE_DATA);
 
-    outb(PIC1_COMMAND, 0x11);
-    outb(PIC2_COMMAND, 0x11);
+    outb(PIC_MASTER_COMMAND, 0x11);
+    outb(PIC_SLAVE_COMMAND, 0x11);
     iowait();
 
-    outb(PIC1_DATA, 0x20);
-    outb(PIC2_DATA, 0x28);
+    outb(PIC_MASTER_DATA, 0x20);
+    outb(PIC_SLAVE_DATA, 0x28);
     iowait();
 
-    outb(PIC1_DATA, 0x04);
-    outb(PIC2_DATA, 0x02);
+    outb(PIC_MASTER_DATA, 0x04);
+    outb(PIC_SLAVE_DATA, 0x02);
     iowait();
 
-    outb(PIC1_DATA, 0x01);
-    outb(PIC2_DATA, 0x01);
+    outb(PIC_MASTER_DATA, 0x01);
+    outb(PIC_SLAVE_DATA, 0x01);
     iowait();
 
-    outb(PIC1_DATA, 0x00);
-    outb(PIC2_DATA, 0x00);
+    outb(PIC_MASTER_DATA, 0x00);
+    outb(PIC_SLAVE_DATA, 0x00);
     iowait();
 
-    outb(PIC1_DATA, ICW4_8086);
+    outb(PIC_MASTER_DATA, ICW4_8086);
     iowait();
-    outb(PIC2_DATA, ICW4_8086);
+    outb(PIC_SLAVE_DATA, ICW4_8086);
     iowait();
 
-    outb(PIC1_DATA, mask1);
-    outb(PIC2_DATA, mask2);
+    outb(PIC_MASTER_DATA, mask1);
+    outb(PIC_SLAVE_DATA, mask2);
 }
 
-pub fn SetMask(irq_line: u8) void {
+pub fn setMask(irq_line: u8) void {
     const port = if (irq_line < 8) {
-        PIC1_DATA;
+        PIC_MASTER_DATA;
     } else {
-        PIC2_DATA;
+        PIC_SLAVE_DATA;
     };
 
     const value = inb(port) | (1 << irq_line % 8);
     outb(port, value);
 }
 
-pub fn ClearMask(irq_line: u8) void {
-    var port: u16 = PIC1_DATA;
-
+pub fn clearMask(irq_line: u8) void {
     const irq_line_mod: u8 = irq_line % 8;
-    const value = inb(port) & ~(@as(u1, 1) << irq_line_mod);
-    outb(port, value);
+    const value = inb(PIC_MASTER_DATA) & ~(@as(u1, 1) << irq_line_mod);
+    outb(PIC_MASTER_DATA, value);
 }
 
 pub fn maskAll() void {
-    outb(PIC1_DATA, 0xFF);
-    outb(PIC2_DATA, 0xFF);
-}
-
-pub fn clearAllMasks() void {
-    var i: u8 = 0;
-    while (i < 16) {
-        ClearMask(i);
-        i += 1;
-    }
+    outb(PIC_MASTER_DATA, 0xFF);
+    outb(PIC_SLAVE_DATA, 0xFF);
 }
 
 pub fn clearKeyboardMask() void {
-    outb(PIC_MASTER_DATA_PORT, 0xfd);
-    outb(PIC_SLAVE_DATA_PORT, 0xff);
+    outb(PIC_MASTER_DATA, 0xfd);
+    outb(PIC_SLAVE_DATA, 0xff);
 }
 
 // Send end-of-interrupt signal for the given IRQ
-pub fn sendEoi(vector: usize) void {
+pub fn sendEOI(vector: usize) void {
     if (vector >= 40) {
-        outb(PIC2, 0x20);
+        outb(PIC_SLAVE_COMMAND, 0x20);
     }
-    outb(PIC1, 0x20);
+    outb(PIC_MASTER_COMMAND, 0x20);
 }
