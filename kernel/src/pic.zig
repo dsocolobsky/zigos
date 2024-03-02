@@ -10,7 +10,12 @@ const PIC2_COMMAND = PIC2; // slave PIC command port
 const PIC2_DATA = (PIC2 + 1); // slave PIC data port
 const ICW4_8086 = 0x01;
 
-pub fn Remap() void {
+const PIC_MASTER_COMMAND_PORT = 0x20;
+const PIC_MASTER_DATA_PORT = 0x21;
+const PIC_SLAVE_COMMAND_PORT = 0xa0;
+const PIC_SLAVE_DATA_PORT = 0xa1;
+
+pub fn remap() void {
     const mask1 = inb(PIC1_DATA);
     const mask2 = inb(PIC2_DATA);
 
@@ -73,4 +78,9 @@ pub fn clearAllMasks() void {
         ClearMask(i);
         i += 1;
     }
+}
+
+pub fn clearKeyboardMask() void {
+    outb(PIC_MASTER_DATA_PORT, 0xfd);
+    outb(PIC_SLAVE_DATA_PORT, 0xff);
 }

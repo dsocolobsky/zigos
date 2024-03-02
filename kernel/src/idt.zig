@@ -13,8 +13,6 @@ const Entry = packed struct(u128) {
     isr_high: u32 = 0, // higher 32 bits of ISR address
     reserved: u32 = 0,
 
-    pub const InterruptHandler = *const fn (interrupt: *const Regs) callconv(.C) void;
-
     pub fn new(handler: u64, flags: u8) @This() {
         var self = Entry{ .attributes = flags };
 
@@ -56,66 +54,94 @@ const IDT = struct {
     entries: [IDT_SIZE]Entry,
 };
 
-pub const Regs = packed struct {
+pub const CPUState = packed struct {
+    // general segment registers
+    ds: u64,
+    es: u64,
+    fs: u64,
+    gs: u64,
+    // general purpose registers
+    r8: u64,
+    r9: u64,
+    r10: u64,
+    r11: u64,
+    r12: u64,
+    r13: u64,
+    r14: u64,
+    r15: u64,
     rbp: u64,
+    rdi: u64,
+    rsi: u64,
+    rdx: u64,
+    rcx: u64,
+    rbx: u64,
+    rax: u64,
+    // The vector that caused the interrupt or exception
+    vector: u64,
+    // The error code, optional, but the interrupt service routine entry
+    // should always push one even the interrupt or exception does not generate
+    // error code
+    error_code: u64,
+
+    rip: u64,
+    cs: u64,
+    rflags: u64,
+    // in 64-bit mode, the SS and rsp are always pushed into stack
     rsp: u64,
+    ss: u64,
 };
 
-pub const Interrupt = packed struct {
-    regs: Regs,
-    interrupt: u64,
-    code_err: u64,
+pub fn logInterrupt(vector: u64, error_code: u64) void {
+    const name = [_][]const u8{
+        "Division by zero",
+        "Debug",
+        "Non-maskable Interrupt",
+        "Breakpoint",
+        "Overflow",
+        "Bound range exceeded",
+        "Invalid Opcode",
+        "Device not available",
+        "Double fault",
+        "0x9",
+        "Invalid TSS",
+        "Segment not present",
+        "Stack-Segment Fault",
+        "General Protection Fault",
+        "Page Fault",
+        "Reversed",
+        "x87 Floating-Point Exception",
+        "Alignment Check",
+        "Machine Check",
+        "SIMD Floating-Point Exception",
+        "Virtualization Exception",
+        "Control Protection Exception",
+        "Reserved",
+        "Reserved",
+        "Reserved",
+        "Reserved",
+        "Reserved",
+        "Hypervisor Injection Exception",
+        "VMM Communcation Exception",
+        "Security Exception",
+        "Reserved",
+    };
 
-    pub fn log(self: *const @This()) void {
-        const expections_name = [_][]const u8{
-            "Division by zero",
-            "Debug",
-            "Non-maskable Interrupt",
-            "Breakpoint",
-            "Overflow",
-            "Bound range Exceeded",
-            "Invalid Opcode",
-            "Device not available",
-            "Double fault",
-            "0x9",
-            "Invalid TSS",
-            "Segment not present",
-            "Stack-Segment Fault",
-            "General Protection fault",
-            "Page Fault",
-            "Reversed",
-            "x87 Floating-Point exception",
-            "Alignment check",
-            "Machine check",
-            "SIMD Floating-Point Excepction",
-            "Virtualization Exception",
-            "Control Protection Exception",
-            "Reserved",
-            "Reserved",
-            "Reserved",
-            "Reserved",
-            "Reserved",
-            "Hypervisor injection exception",
-            "VMM communcation exception",
-            "Security exception",
-            "Reserved",
-        };
-
-        if (self.interrupt < 31) {
-            serial.print(
-                "Interrupt no: {x} name: {s}\nError code : {x}\n",
-                .{ self.interrupt, expections_name[self.interrupt], self.code_err },
-            );
-            return;
-        }
-
-        serial.print("Interrupt no: {x}\nError code : {x}\n", .{ self.interrupt, self.code_err });
+    if (vector < 31) {
+        serial.print(
+            "1 Interrupt no: {x} name: {s}\nError code: {x}\n",
+            .{ vector, name[vector], error_code },
+        );
+    } else {
+        serial.print("2 Interrupt no: {x}\nError code : {x}\n", .{
+            vector,
+            error_code,
+        });
     }
-};
+}
 
-export fn interrupt_handler(rsp: u64) callconv(.C) u64 {
-    const reg: *Interrupt = @ptrFromInt(rsp);
-    reg.log();
+export fn interrupt_handler(rsp: usize) callconv(.C) u64 {
+    const cpu_state: *CPUState = @ptrFromInt(rsp);
+    logInterrupt(cpu_state.vector, cpu_state.error_code);
 
     while (true) {}
 

@@ -1,59 +1,55 @@
 [bits 64]
 
 %macro push_all 0
-        push rax
-        push rbx
-        push rcx
-        push rdx
-        push rsi
-        push rdi
-        push rbp
-        push r15
-        push r14
-        push r13
-        push r12
-        push r11
-        push r10
-        push r9
-        push r8
-        xor rax, rax
-        mov rax, gs
-        push rax
-        xor rax, rax
-        mov rax, fs
-        push rax
-        xor rax, rax
-        mov rax, es
-        push rax
-        xor rax, rax
-        mov rax, ds
-        push rax
+    push qword rax
+    push qword rbx
+    push qword rcx
+    push qword rdx
+    push qword rsi
+    push qword rdi
+    push qword rbp
+    push qword r15
+    push qword r14
+    push qword r13
+    push qword r12
+    push qword r11
+    push qword r10
+    push qword r9
+    push qword r8
+    mov qword rax, gs
+    push qword rax
+    mov qword rax, fs
+    push qword rax
+    mov qword rax, es
+    push qword rax
+    mov qword rax, ds
+    push qword rax
 %endmacro
 
 %macro pop_all 0
-        pop rax
-        mov ds, rax
-        pop rax
-        mov es, rax
-        pop rax
-        mov fs, rax
-        pop rax
-        mov gs, rax
-        pop r8
-        pop r9
-        pop r10
-        pop r11
-        pop r12
-        pop r13
-        pop r14
-        pop r15
-        pop rbp
-        pop rdi
-        pop rsi
-        pop rdx
-        pop rcx
-        pop rbx
-        pop rax
+    pop rax
+    mov ds, rax
+    pop rax
+    mov es, rax
+    pop rax
+    mov fs, rax
+    pop rax
+    mov gs, rax
+    pop r8
+    pop r9
+    pop r10
+    pop r11
+    pop r12
+    pop r13
+    pop r14
+    pop r15
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
 %endmacro
 
 %macro interrupt_err 1

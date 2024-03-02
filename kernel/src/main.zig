@@ -42,10 +42,6 @@ export fn _start() callconv(.C) noreturn {
     idt.init();
     serial.puts("Interrupts Initialized");
 
-    // Generate a dummmy interrupt to check
-    // if the IDT is set up correctly
-    asm volatile ("int $34");
-
     // Framebuffer
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
