@@ -4,6 +4,7 @@ const framebuffer = @import("framebuffer.zig");
 const serial = @import("serial.zig");
 const gdt = @import("gdt.zig");
 const interrupts = @import("interrupts.zig");
+const font = @import("font.zig");
 const hlt = @import("asm.zig").hlt;
 
 // Set the base revision to 1, this is recommended as this is the latest
@@ -39,6 +40,27 @@ export fn _start() callconv(.C) noreturn {
     gdt.init();
     framebuffer.init();
     interrupts.init();
+
+    const fnt = font.init();
+    fnt.log();
+
+    fnt.putChar(
+        &framebuffer.global_framebuffer,
+        'Q',
+        3,
+        3,
+        0x00_FF_00_00,
+        0x00_00_FF_00,
+    );
+
+    // font.psfPutCharAt(
+    //     &framebuffer.global_framebuffer,
+    //     'F',
+    //     2,
+    //     3,
+    //     0xFFFFFF,
+    //     0xFF0000,
+    // );
 
     // We're done, just hang...
     halt();

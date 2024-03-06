@@ -121,9 +121,8 @@ pub fn logInterrupt(vector: u64, error_code: u64) void {
 
 fn tick() void {
     ticks += 1;
-    if (ticks % 1000 == 0) {
-        framebuffer.global_framebuffer.update_panel();
-        serial.puts("Tick");
+    if (ticks % 20 == 0) {
+        //framebuffer.global_framebuffer.update_panel();
     }
 }
 

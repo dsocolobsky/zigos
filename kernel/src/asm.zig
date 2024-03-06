@@ -30,5 +30,5 @@ pub inline fn hlt() void {
 }
 
 pub inline fn magic_breakpoint() void {
-    asm volatile ("xchgw %bx, %bx");
+    return asm volatile ("xchgw %bx, %bx");
 }

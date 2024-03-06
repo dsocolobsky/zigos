@@ -49,5 +49,8 @@ pub fn build(b: *std.build.Builder) !void {
     std.fs.cwd().makePath("./zig-cache/nasm") catch {};
     try build_nasm("./src/interrupts.s", "interrupts", kernel);
 
+    // Link Tamsyn font
+    kernel.addObjectFile(std.Build.LazyPath{ .path = "./tamsyn.o" });
+
     b.installArtifact(kernel);
 }

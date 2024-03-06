@@ -86,8 +86,21 @@ pub fn init() void {
         };
 
         framebuffer.clear();
-        framebuffer.update_panel();
+        //framebuffer.update_panel();
 
         global_framebuffer = framebuffer;
+
+        serial.println(
+            "framebuffer dimensions: {d}x{d}",
+            .{ framebuffer.framebuffer.width, framebuffer.framebuffer.height },
+        );
+        serial.println(
+            "framebuffer pitch: {d}",
+            .{framebuffer.framebuffer.pitch},
+        );
+        serial.println(
+            "framebuffer bits per pixel: {d}",
+            .{framebuffer.framebuffer.bpp},
+        );
     }
 }
