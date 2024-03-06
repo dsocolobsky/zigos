@@ -38,42 +38,22 @@ export fn _start() callconv(.C) noreturn {
     }
 
     gdt.init();
-    framebuffer.init();
+
     interrupts.init();
 
     const fnt = font.init();
     fnt.log();
 
-    // var cx: u32 = 4;
-    // for ('A'..'Z') |ch| {
-    //     fnt.putChar(
-    //         &framebuffer.global_framebuffer,
-    //         @as(u8, @truncate(ch)),
-    //         cx,
-    //         3,
-    //         0x00_FF_00_00, // Red
-    //         0xFF_FF_FF_FF, // White
-    //     );
-    //     cx += 2;
-    // }
+    framebuffer.init(fnt);
 
-    fnt.puts(
+    framebuffer.puts(
         &framebuffer.global_framebuffer,
-        "Hello Kernel",
+        "Hello Framebuffer",
         3,
         3,
-        0x00_FF_00_00,
-        0xFF_FF_FF_FF,
+        framebuffer.COLOR_RED,
+        framebuffer.COLOR_WHITE,
     );
-
-    // font.psfPutCharAt(
-    //     &framebuffer.global_framebuffer,
-    //     'F',
-    //     2,
-    //     3,
-    //     0xFFFFFF,
-    //     0xFF0000,
-    // );
 
     // We're done, just hang...
     halt();
