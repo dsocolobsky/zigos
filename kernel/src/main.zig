@@ -44,18 +44,27 @@ export fn _start() callconv(.C) noreturn {
     const fnt = font.init();
     fnt.log();
 
-    var cx: u32 = 4;
-    for ('A'..'Z') |ch| {
-        fnt.putChar(
-            &framebuffer.global_framebuffer,
-            @as(u8, @truncate(ch)),
-            cx,
-            3,
-            0x00_FF_00_00, // Red
-            0x00_00_FF_00, // Green
-        );
-        cx += 2;
-    }
+    // var cx: u32 = 4;
+    // for ('A'..'Z') |ch| {
+    //     fnt.putChar(
+    //         &framebuffer.global_framebuffer,
+    //         @as(u8, @truncate(ch)),
+    //         cx,
+    //         3,
+    //         0x00_FF_00_00, // Red
+    //         0xFF_FF_FF_FF, // White
+    //     );
+    //     cx += 2;
+    // }
+
+    fnt.puts(
+        &framebuffer.global_framebuffer,
+        "Hello Kernel",
+        3,
+        3,
+        0x00_FF_00_00,
+        0xFF_FF_FF_FF,
+    );
 
     // font.psfPutCharAt(
     //     &framebuffer.global_framebuffer,

@@ -57,7 +57,7 @@ const PSF = packed struct {
 
         for (0..self.height) |_| {
             var line: u32 = @intCast(offs);
-            var mask = @as(u32, 1) << @truncate(self.width - 1);
+            var mask = @as(u32, 1) << @truncate(self.width + 1);
 
             for (0..self.width) |_| {
                 const pixel_addr: usize = @intFromPtr(fbuff.framebuffer.address) + @as(usize, line);
@@ -75,6 +75,29 @@ const PSF = packed struct {
             const new_glyph_addr = @intFromPtr(glyph) + self.bytesPerLine();
             glyph = @ptrFromInt(new_glyph_addr);
             offs += pitch;
+        }
+    }
+
+    pub fn puts(
+        self: *PSF,
+        fbuff: *framebuffer.Framebuffer,
+        str: []const u8,
+        cx: u32,
+        cy: u32,
+        fg: u32,
+        bg: u32,
+    ) void {
+        var idx: usize = 0;
+        while (str[idx] != 0x00) {
+            self.putChar(
+                fbuff,
+                str[idx],
+                @truncate(cx + idx),
+                cy,
+                fg,
+                bg,
+            );
+            idx += 1;
         }
     }
 };
