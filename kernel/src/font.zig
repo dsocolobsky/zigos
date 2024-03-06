@@ -13,7 +13,6 @@ const PSF = packed struct {
     bytes_per_glyph: u32,
     height: u32,
     width: u32,
-    glyphs: [*]u8,
 
     pub fn log(self: *PSF) void {
         serial.println("PSF magic: {x}", .{self.magic});
@@ -21,16 +20,18 @@ const PSF = packed struct {
         serial.println("PSF glyph count: {d}", .{self.glyph_count});
         serial.println("PSF bytes per glyph: {d}", .{self.bytes_per_glyph});
         serial.println("PSF bytes per line: {d}", .{self.bytesPerLine()});
+        const start = @intFromPtr(&self) + self.header_size;
+        serial.println("PSF glyph start addr: 0x{x}", .{start});
     }
 
-    fn getGlyph(self: *PSF, c: u8) usize {
-        const start = @intFromPtr(&self) + self.header_size;
-        const the_c = if (c > 0 and (c < self.glyph_count))
-            c
-        else
-            0;
-        const new_glyph = start + the_c * self.bytes_per_glyph;
-        return new_glyph;
+    fn getGlyph(self: *PSF, c: u8) *u8 {
+        const start = @intFromPtr(self) + self.header_size;
+        return @ptrFromInt(start + c * self.bytes_per_glyph);
+    }
+
+    fn getGlyph2(self: *PSF, c: u8) [*]u8 {
+        const new_idx: [*]u8 = self.glyphs[c * self.bytes_per_glyph ..];
+        return new_idx;
     }
 
     inline fn bytesPerLine(self: *PSF) u32 {
@@ -46,8 +47,7 @@ const PSF = packed struct {
         fg: u32,
         bg: u32,
     ) void {
-        var glyph: usize = self.getGlyph(char);
-        var glyph_ptr: [*]u32 = @ptrFromInt(glyph);
+        var glyph: *u8 = self.getGlyph(char);
 
         // bytes per line, it's 4*1920 = 7680
         const bytes_per_pixel = 4;
@@ -61,13 +61,9 @@ const PSF = packed struct {
 
             for (0..self.width) |_| {
                 const pixel_addr: usize = @intFromPtr(fbuff.framebuffer.address) + @as(usize, line);
-                serial.println("glyph: 0x{x}", .{glyph});
-                serial.puts("ok");
-                const masked_glyph: u32 = glyph_ptr[0] & mask;
-                serial.println("masked_glyph: 0x{x}", .{masked_glyph});
+                const masked_glyph: u32 = glyph.* & mask;
                 var color: u32 = if (masked_glyph != 0) fg else bg;
                 const pixel_ptr: *u32 = @ptrFromInt(pixel_addr);
-                //pixel_ptr.* = 0x00_FF_00_00; // AA_RR_GG_BB
                 pixel_ptr.* = color;
 
                 // adjust next pixel
@@ -76,7 +72,8 @@ const PSF = packed struct {
             }
 
             // This segfaults
-            glyph_ptr += self.bytesPerLine();
+            const new_glyph_addr = @intFromPtr(glyph) + self.bytesPerLine();
+            glyph = @ptrFromInt(new_glyph_addr);
             offs += pitch;
         }
     }

@@ -44,14 +44,18 @@ export fn _start() callconv(.C) noreturn {
     const fnt = font.init();
     fnt.log();
 
-    fnt.putChar(
-        &framebuffer.global_framebuffer,
-        'Q',
-        3,
-        3,
-        0x00_FF_00_00,
-        0x00_00_FF_00,
-    );
+    var cx: u32 = 4;
+    for ('A'..'Z') |ch| {
+        fnt.putChar(
+            &framebuffer.global_framebuffer,
+            @as(u8, @truncate(ch)),
+            cx,
+            3,
+            0x00_FF_00_00, // Red
+            0x00_00_FF_00, // Green
+        );
+        cx += 2;
+    }
 
     // font.psfPutCharAt(
     //     &framebuffer.global_framebuffer,
