@@ -6,6 +6,7 @@ const gdt = @import("gdt.zig");
 const interrupts = @import("interrupts.zig");
 const font = @import("font.zig");
 const hlt = @import("asm.zig").hlt;
+const pmm = @import("pmm.zig");
 
 // Set the base revision to 1, this is recommended as this is the latest
 // base revision described by the Limine boot protocol specification.
@@ -54,6 +55,8 @@ export fn _start() callconv(.C) noreturn {
         framebuffer.COLOR_RED,
         framebuffer.COLOR_WHITE,
     );
+
+    pmm.init();
 
     // We're done, just hang...
     halt();
