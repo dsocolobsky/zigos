@@ -12,10 +12,6 @@ pub export var hhdm_request = limine.HhdmRequest{
     .revision = 1,
 };
 
-inline fn max(a: usize, b: usize) usize {
-    return if (a > b) a else b;
-}
-
 inline fn div_roundup(a: usize, b: usize) usize {
     return (a + (b - 1)) / b;
 }
@@ -48,7 +44,7 @@ pub fn init() void {
     for (memmap_response.entries()) |entry| {
         if (entry.kind == limine.MemoryMapEntryType.usable) {
             usable_pages += div_roundup(entry.length, PAGE_SIZE);
-            highest_addr += max(highest_addr, entry.base + entry.length);
+            highest_addr += @max(highest_addr, entry.base + entry.length);
             serial.println(
                 "[pmm] base: 0x{X}, length: 0x{X}, size: {d}Kb, {d}Mb",
                 .{ entry.base, entry.length, entry.length / 1024, entry.length / 1024 / 1024 },
@@ -58,7 +54,7 @@ pub fn init() void {
         }
     }
 
-    const highest_page_idx = highest_addr / PAGE_SIZE;
+    const highest_page_idx = div_roundup(highest_addr, PAGE_SIZE);
     const bitmap_size = align_up(highest_page_idx / 8, PAGE_SIZE);
 
     serial.println(
@@ -112,20 +108,65 @@ pub fn init() void {
         bitmap.clear_range(entry.base, entry.length);
     }
     bitmap.log();
-    serial.puts("Asking for 5 pages");
-    _ = bitmap.get_page();
-    _ = bitmap.get_page();
-    _ = bitmap.get_page();
-    _ = bitmap.get_page();
-    bitmap.log();
+
+    sanity_test();
 }
 
-// Returns the first available 4Kb page
-pub fn page() usize {
-    const addr = offset + bitmap.page().?;
+fn sanity_test() void {
+    const prev_total: usize = bitmap.total_pages;
+    const prev_free: usize = bitmap.free_pages;
+    const prev_used: usize = bitmap.used_pages;
+    serial.println(
+        "[pmm] Performing sanity test, prev total pages: {}, prev free pages: {}, prev used pages: {}",
+        .{ bitmap.total_pages, bitmap.free_pages, bitmap.used_pages },
+    );
+    serial.puts("[pmm] Asking for 4 pages...");
+    const p1: usize = alloc_page();
+    const p2: usize = alloc_page();
+    const p3: usize = alloc_page();
+    const p4: usize = alloc_page();
+    if ((bitmap.total_pages != prev_total) or (bitmap.free_pages != (prev_free - 4)) or
+        (bitmap.used_pages != (prev_used + 4)))
+    {
+        serial.print_err("[pmm] Mismatch detected! total: {}, free: {}, used: {}", .{
+            bitmap.total_pages,
+            bitmap.free_pages,
+            bitmap.used_pages,
+        });
+    } else {
+        serial.puts("First thing ok ");
+    }
+    free(p4);
+    free(p2);
+    free(p1);
+    free(p3);
+    if (bitmap.total_pages != prev_total or (bitmap.free_pages != prev_free) or
+        (bitmap.used_pages != prev_used))
+    {
+        serial.print_err(
+            "[pmm] Mismatch detected after free! total: {}, free: {}, used: {}",
+            .{ bitmap.total_pages, bitmap.free_pages, bitmap.used_pages },
+        );
+    } else {
+        serial.puts("[pmm] Sanity test OK");
+    }
+}
+
+/// Returns the first available 4Kb page
+pub fn alloc_page() usize {
+    const addr = offset + bitmap.alloc_page().?;
     serial.println(
         "[pmm] Returning page starting at 0x{X}",
         .{addr},
     );
     return addr;
+}
+
+fn free(address: usize) void {
+    const off = address - offset;
+    serial.println(
+        "[pmm] Freeing page for 0x{X} offset 0x{X}",
+        .{ address, off },
+    );
+    bitmap.free(off);
 }

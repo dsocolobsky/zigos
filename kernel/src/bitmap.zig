@@ -12,11 +12,19 @@ inline fn set_bit(n: *u8, bit: u8) void {
 }
 
 inline fn clear_bit(n: *u8, bit: u8) void {
-    n &= ~(1 << bit);
+    n.* &= ~(@as(u8, 1) << @intCast(bit));
 }
 
 inline fn div_roundup(a: usize, b: usize) usize {
     return (a + (b - 1)) / b;
+}
+
+inline fn page_index_for_addr(addr: usize) usize {
+    return @divFloor(addr, PAGE_SIZE);
+}
+
+inline fn map_index_for_page(page_index: usize) usize {
+    return div_roundup(page_index, 8);
 }
 
 pub const Bitmap = struct {
@@ -93,7 +101,11 @@ pub const Bitmap = struct {
     }
 
     /// Returns a single 4Kb page
-    pub fn get_page(self: *Self) ?usize {
+    pub fn alloc_page(self: *Self) ?usize {
+        if (self.free_pages < 1) {
+            serial.print_err("[bitmap] failed to get free page", .{});
+            return null;
+        }
         var byte_index: usize = 0;
         while (byte_index < self.total_pages / 8) : (byte_index += 1) {
             var b: *u8 = &self.map[byte_index];
@@ -110,11 +122,36 @@ pub const Bitmap = struct {
                         .{ page_num, addr },
                     );
                     set_bit(b, bit_index);
+                    self.free_pages -= 1;
+                    self.used_pages += 1;
                     return addr;
                 }
             }
         }
         serial.print_err("[bitmap] failed to get free page", .{});
         return null;
+    }
+
+    /// Frees a page given an address. This will free the entire page.
+    pub fn free(self: *Self, address: usize) void {
+        const page = page_index_for_addr(address);
+        self.free_page(page);
+    }
+
+    /// Frees a page given the page number
+    pub fn free_page(self: *Self, page: usize) void {
+        const byte = self.map_byte_for_page(page);
+        const bit_index: u8 = @as(u8, @truncate(page % 8));
+        serial.println(
+            "[bitmap] Freeing page #{d} at byte {d} bit {d}",
+            .{ page, byte, bit_index },
+        );
+        clear_bit(byte, bit_index);
+        self.free_pages += 1;
+        self.used_pages -= 1;
+    }
+
+    inline fn map_byte_for_page(self: *Self, page_index: usize) *u8 {
+        return &self.map[map_index_for_page(page_index)];
     }
 };
