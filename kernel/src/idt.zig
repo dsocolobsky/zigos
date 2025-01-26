@@ -82,7 +82,7 @@ pub fn init() void {
     );
 
     const loaded_idtr = get_idtr_value();
-    if (loaded_idtr.base != idtr.base) {
+    if (loaded_idtr.base != idtptr.base) {
         serial.print_err("IDT limit mismatch: {x} != {x}\n", .{
             loaded_idtr.base,
             idtptr.base,
