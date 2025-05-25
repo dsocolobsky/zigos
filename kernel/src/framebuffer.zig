@@ -85,7 +85,7 @@ pub fn putChar(
 
         for (0..self.font.width) |_| {
             const masked_glyph: u32 = glyph[0] & mask;
-            var color: u32 = if (masked_glyph != 0) fg else bg;
+            const color: u32 = if (masked_glyph != 0) fg else bg;
             self.framebuffer.address[line + 0] = get_blue(color);
             self.framebuffer.address[line + 1] = get_green(color);
             self.framebuffer.address[line + 2] = get_red(color);

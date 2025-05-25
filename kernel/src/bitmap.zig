@@ -108,7 +108,7 @@ pub const Bitmap = struct {
         }
         var byte_index: usize = 0;
         while (byte_index < self.total_pages / 8) : (byte_index += 1) {
-            var b: *u8 = &self.map[byte_index];
+            const b: *u8 = &self.map[byte_index];
             if (b.* & 0xFF == 0xFF) continue;
 
             // Found a byte with at least 1 page (bit) clear
