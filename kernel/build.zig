@@ -45,7 +45,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     // Add the Limine library as a dependency.
-    const limine = b.dependency("limine", .{});
+    const limine = b.dependency("limine_zig", .{});
     kernel.root_module.addImport("limine", limine.module("limine"));
 
     //const limine_mod = b.addModule("limine", .{
@@ -56,7 +56,7 @@ pub fn build(b: *std.Build) !void {
     //});
     //kernel.root_module.addImport("limine", limine_mod);
 
-    kernel.setLinkerScriptPath(b.path("linker.ld"));
+    kernel.setLinkerScript(b.path("linker.ld"));
     kernel.pie = false;
     kernel.root_module.stack_protector = false;
     kernel.root_module.stack_check = false;
