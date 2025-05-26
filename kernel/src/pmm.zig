@@ -24,10 +24,11 @@ var offset: usize = undefined;
 var bitmap: Bitmap = undefined;
 
 pub fn init() void {
-    const memmap_response = memmap_request.response.?;
-    //if (memmap_response == 0) {
-    //    serial.print_err("Failed to get remmap response", .{});
-    //}
+    // Ensure the response from the memmap_request is valid
+    const memmap_response = memmap_request.response orelse {
+        serial.print_err("[pmm] Limine memmap response is null!", .{});
+        return;
+    };
 
     const hhdm_response = hhdm_request.response;
     if (hhdm_response == null) {
@@ -36,21 +37,27 @@ pub fn init() void {
 
     offset = hhdm_response.?.offset;
 
-    var usable_pages: usize = 0;
-    var reserved_pages: usize = 0;
-    var highest_addr: usize = 0;
+    const usable_pages: usize = 0;
+    const reserved_pages: usize = 0;
+    const highest_addr: usize = 0;
 
     serial.puts("[pmm] Usable Entries:");
-    for (memmap_response.entries()) |entry| {
-        if (entry.kind == limine.MemoryMapEntryType.usable) {
-            usable_pages += div_roundup(entry.length, PAGE_SIZE);
-            highest_addr += @max(highest_addr, entry.base + entry.length);
+    const entries = memmap_response.entries orelse {
+        serial.print_err("memmap_response.entries has null pointer", .{});
+        return;
+    };
+    for (0..32) |i| {
+        const entry = entries[i];
+        if (entry.length > 0) { // I made this up it was usable before
             serial.println(
                 "[pmm] base: 0x{X}, length: 0x{X}, size: {d}Kb, {d}Mb",
                 .{ entry.base, entry.length, entry.length / 1024, entry.length / 1024 / 1024 },
             );
         } else {
-            reserved_pages += div_roundup(entry.length, PAGE_SIZE);
+            serial.println(
+                "[pmm] reserved base: 0x{X}, length: 0x{X}",
+                .{ entry.base, entry.length },
+            );
         }
     }
 
@@ -71,18 +78,25 @@ pub fn init() void {
     );
 
     // Find the first entry suitable to store the page bitmap
-    var bitmap_start: usize = undefined;
-    for (memmap_response.entries()) |entry| {
-        if (entry.kind != limine.MemoryMapEntryType.usable) {
+    var bitmap_start: usize = 0; // Initialize to 0 or another sensible default
+    var found_space_for_bitmap = false;
+    // Iterate again to find space for the bitmap
+    // It's important to use a fresh iteration or ensure the previous one didn't modify entries in a way that affects this search
+    for (0..32) |i| {
+        const entry = entries[i];
+        if (entry.length <= 0) {
             continue;
         }
         if (entry.length >= bitmap_size) {
             bitmap_start = offset + entry.base;
             entry.base += bitmap_size;
             entry.length -= bitmap_size;
+            found_space_for_bitmap = true;
             break;
         }
+    }
 
+    if (!found_space_for_bitmap) {
         serial.print_err("[pmm] did not find space for the bitmap!", .{});
         return;
     }
@@ -97,12 +111,13 @@ pub fn init() void {
     bitmap.log();
 
     // Mark all available regions as free in the bitmap
-    for (memmap_response.entries()) |entry| {
-        if (entry.kind != limine.MemoryMapEntryType.usable) {
+    for (0..32) |i| {
+        const entry = entries[i];
+        if (entry.length <= 0) {
             continue;
         }
         serial.println(
-            "[pmm] Clearing range: 0x{X} of {d} bytes",
+            "[pmm] Marking range: 0x{X} of {d} bytes as free",
             .{ entry.base, entry.length },
         );
         bitmap.clear_range(entry.base, entry.length);

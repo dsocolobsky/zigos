@@ -1,4 +1,5 @@
 pub const Framebuffer = @This();
+const std = @import("std");
 const limine = @import("limine");
 const serial = @import("serial.zig");
 const PSF = @import("font.zig").PSF;
@@ -6,12 +7,12 @@ const PSF = @import("font.zig").PSF;
 pub var global_framebuffer: Framebuffer = undefined;
 var tick_color_index: usize = 0;
 
+var framebuffer_request: limine.FramebufferRequest = .{};
+
 framebuffer: *limine.Framebuffer = undefined,
 
 font: *PSF = undefined,
 bpp: u32 = 4,
-
-pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
 pub const COLOR_RED: u32 = 0x00_FF_00_00;
 pub const COLOR_GREEN: u32 = 0x00_00_FF_00;
@@ -37,26 +38,75 @@ inline fn get_green(color: u32) u8 {
 }
 
 pub fn clear(self: Framebuffer) void {
-    self.fillrect(COLOR_WHITE, self.framebuffer.width, self.framebuffer.height);
+    // Ensure width and height are positive for fillrect
+    if (self.framebuffer.width > 0 and self.framebuffer.height > 0) {
+        self.fillrect(COLOR_WHITE, self.framebuffer.width, self.framebuffer.height);
+    }
 }
 
 pub fn putpixel(self: Framebuffer, x: u32, y: u32, color: u32) void {
-    const where = y * self.framebuffer.pitch + x * self.bpp;
-    self.framebuffer.address[where + 0] = get_blue(color);
-    self.framebuffer.address[where + 1] = get_green(color);
-    self.framebuffer.address[where + 2] = get_red(color);
+    if (self.framebuffer.address == null) {
+        return;
+    }
+    // Since it's not null, we can use it directly.
+    const fb_base_address: *anyopaque = self.framebuffer.address;
+
+    // 2. Calculate the total size of the framebuffer in bytes
+    const fb_total_size = self.framebuffer.height * self.framebuffer.pitch;
+    if (fb_total_size == 0) return; // Avoid zero-length slice
+
+    // 3. Create a slice for the entire framebuffer
+    var fb_slice: []u8 = @as([*]u8, @ptrCast(fb_base_address))[0..fb_total_size];
+
+    const offset = @as(usize, y) * @as(usize, self.framebuffer.pitch) + @as(usize, x) * @as(usize, self.bpp);
+
+    // Bounds check
+    if (offset + self.bpp <= fb_slice.len) {
+        fb_slice[offset + 0] = get_blue(color);
+        fb_slice[offset + 1] = get_green(color);
+        fb_slice[offset + 2] = get_red(color);
+        // if self.bpp == 4, handle alpha if necessary:
+        // fb_slice[offset + 3] = get_alpha(color);
+    }
 }
 
 pub fn fillrect(self: Framebuffer, color: u32, width: u64, height: u64) void {
-    var where = self.framebuffer.address;
+    // Check if the framebuffer base address is null
+    if (@intFromPtr(self.framebuffer.address) == 0) {
+        return; // Can't draw if address is null
+    }
+    // Since it's not null, we can use it directly.
+    const fb_base_address: *anyopaque = self.framebuffer.address;
 
-    for (0..height) |_| {
-        for (0..width) |x| {
-            where[x * self.bpp + 0] = get_blue(color);
-            where[x * self.bpp + 1] = get_green(color);
-            where[x * self.bpp + 2] = get_red(color);
+    const fb_pitch = self.framebuffer.pitch;
+    const fb_height = self.framebuffer.height;
+    const fb_width = self.framebuffer.width; // Use actual framebuffer width for bounds checking
+
+    // Calculate total framebuffer size for the slice
+    const fb_total_size = fb_height * fb_pitch;
+    if (fb_total_size == 0) return;
+
+    var fb_slice: []u8 = @as([*]u8, @ptrCast(fb_base_address))[0..fb_total_size];
+
+    const rect_height = @min(height, fb_height); // Don't draw past framebuffer height
+    const rect_width = @min(width, fb_width); // Don't draw past framebuffer width
+
+    var y: u64 = 0;
+    while (y < rect_height) : (y += 1) {
+        const current_row_offset: usize = @intCast(y * fb_pitch); // Changed var to const
+        var x: u64 = 0;
+        while (x < rect_width) : (x += 1) {
+            const pixel_offset_in_row: usize = @intCast(x * self.bpp);
+            const final_offset = current_row_offset + pixel_offset_in_row;
+
+            if (final_offset + self.bpp <= fb_slice.len) {
+                fb_slice[final_offset + 0] = get_blue(color);
+                fb_slice[final_offset + 1] = get_green(color);
+                fb_slice[final_offset + 2] = get_red(color);
+                // if self.bpp == 4, handle alpha:
+                // fb_slice[final_offset + 3] = get_alpha(color);
+            }
         }
-        where += self.framebuffer.pitch;
     }
 }
 
@@ -86,9 +136,12 @@ pub fn putChar(
         for (0..self.font.width) |_| {
             const masked_glyph: u32 = glyph[0] & mask;
             const color: u32 = if (masked_glyph != 0) fg else bg;
-            self.framebuffer.address[line + 0] = get_blue(color);
-            self.framebuffer.address[line + 1] = get_green(color);
-            self.framebuffer.address[line + 2] = get_red(color);
+
+            // TODO figure out if this limit is safe, I just made it up
+            var address: []u8 = @as([*]u8, @ptrCast(self.framebuffer.address))[0..65536];
+            address[line + 0] = get_blue(color);
+            address[line + 1] = get_green(color);
+            address[line + 2] = get_red(color);
 
             // adjust next pixel
             mask >>= 1;
@@ -124,11 +177,20 @@ pub fn init(font: *PSF) void {
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
             serial.print_err("Error initializing framebuffer", .{});
+            return;
         }
 
+        // Ensure framebuffer_response.framebuffers is not null
+        const limine_framebuffers = framebuffer_response.framebuffers orelse {
+            serial.print_err("Framebuffer response has null framebuffers pointer", .{});
+            return;
+        };
+
+        // Correctly type framebuffer_ptr to match the type from limine library
+        const framebuffer_ptr: [*]*limine.Framebuffer = limine_framebuffers;
         const framebuffer = Framebuffer{
-            .framebuffer = framebuffer_response.framebuffers()[0],
-            .bpp = framebuffer_response.framebuffers()[0].bpp / 8,
+            .framebuffer = framebuffer_ptr[0], // Now framebuffer_ptr[0] is *limine.Framebuffer
+            .bpp = framebuffer_ptr[0].bpp / 8, // Accessing .bpp from limine.Framebuffer
             .font = font,
         };
 

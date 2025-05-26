@@ -24,7 +24,7 @@ inline fn halt() noreturn {
 // The following will be our kernel's entry point.
 export fn _start() callconv(.C) noreturn {
     // Ensure the bootloader actually understands our base revision (see spec).
-    if (!base_revision.is_supported()) {
+    if (!base_revision.isSupported()) {
         halt();
     }
 
