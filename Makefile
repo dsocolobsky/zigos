@@ -25,7 +25,7 @@ $(eval $(call DEFAULT_VAR,HOST_LDFLAGS,$(DEFAULT_HOST_LDFLAGS)))
 override DEFAULT_HOST_LIBS :=
 $(eval $(call DEFAULT_VAR,HOST_LIBS,$(DEFAULT_HOST_LIBS)))
 
-override DEFAULT_ZIGFLAGS := -Doptimize=Debug
+override DEFAULT_ZIGFLAGS := -Drelease=false
 $(eval $(call DEFAULT_VAR,ZIGFLAGS,$(DEFAULT_ZIGFLAGS)))
 
 .PHONY: all
@@ -44,8 +44,9 @@ run: $(IMAGE_NAME).iso
 	-no-shutdown -debugcon file:qemu.out -monitor stdio -D qemu.log -M smm=off
 
 limine:
-	git clone https://github.com/limine-bootloader/limine.git --branch=binary --depth=1
-	$(MAKE) -C limine
+	rm -rf limine
+	git clone https://github.com/limine-bootloader/limine.git --branch=v8.x-binary --depth=1
+	$(MAKE) -C limine limine
 
 .PHONY: kernel
 kernel:
@@ -65,7 +66,6 @@ $(IMAGE_NAME).iso: limine kernel
 		-efi-boot-part --efi-boot-image --protective-msdos-label \
 		iso_root -o $(IMAGE_NAME).iso
 	./limine/limine bios-install $(IMAGE_NAME).iso
-	rm -rf iso_root
 
 .PHONY: clean
 clean:
