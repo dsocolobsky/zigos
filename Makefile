@@ -45,7 +45,7 @@ run: $(IMAGE_NAME).iso
 
 limine:
 	rm -rf limine
-	git clone https://github.com/limine-bootloader/limine.git --branch=v8.x-binary --depth=1
+	git clone https://github.com/limine-bootloader/limine.git --branch=v9.x-binary --depth=1
 	$(MAKE) -C limine limine
 
 .PHONY: kernel
@@ -56,7 +56,7 @@ $(IMAGE_NAME).iso: limine kernel
 	rm -rf iso_root
 	mkdir -p iso_root
 	cp -v kernel/zig-out/bin/kernel \
-		limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin limine/limine-uefi-cd.bin iso_root/
+		limine.conf limine/limine-bios.sys limine/limine-bios-cd.bin limine/limine-uefi-cd.bin iso_root/
 	mkdir -p iso_root/EFI/BOOT
 	cp -v limine/BOOTX64.EFI iso_root/EFI/BOOT/
 	cp -v limine/BOOTIA32.EFI iso_root/EFI/BOOT/
