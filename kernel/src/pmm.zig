@@ -24,6 +24,7 @@ var offset: usize = undefined;
 var bitmap: Bitmap = undefined;
 
 pub fn init() void {
+    serial.puts("[pmm] init...");
     // Ensure the response from the memmap_request is valid
     const memmap_response = memmap_request.response orelse {
         serial.print_err("[pmm] Limine memmap response is null!", .{});

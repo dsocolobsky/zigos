@@ -40,6 +40,7 @@ bochs: $(IMAGE_NAME).iso
 
 .PHONY: run
 run: $(IMAGE_NAME).iso
+	rm -rf qemu.out qemu.log
 	qemu-system-x86_64 -M q35 -m 2G -cdrom $(IMAGE_NAME).iso -boot d -S -s -d int -no-reboot \
 	-no-shutdown -debugcon file:qemu.out -monitor stdio -D qemu.log -M smm=off
 

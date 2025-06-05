@@ -43,6 +43,9 @@ export fn _start() callconv(.C) noreturn {
     interrupts.init();
 
     const fnt = font.init();
+    if (@intFromPtr(fnt) == 0) {
+        serial.puts("Font PSF is NULL");
+    }
     fnt.log();
 
     framebuffer.init(fnt);

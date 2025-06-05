@@ -117,43 +117,118 @@ pub fn update_panel(self: Framebuffer) void {
 
 pub fn putChar(
     self: *Framebuffer,
-    char: u8,
+    char_code: u8,
     cx: u32,
     cy: u32,
     fg: u32,
     bg: u32,
 ) void {
-    var glyph: [*]u8 = self.font.getGlyph(char);
+    serial.println("putChar: Entered. char='{c}' (ascii {d}), cx={d}, cy={d}, fg=0x{x}, bg=0x{x}", .{ char_code, char_code, cx, cy, fg, bg });
 
-    const pitch = self.framebuffer.pitch;
-    var offs = (cy * self.font.height * pitch) +
-        (cx * (self.font.width + 1) * self.bpp);
+    // --- Initial Checks ---
+    if (@intFromPtr(self.framebuffer.address) == 0) { // Limine.Framebuffer.address is ?*anyopaque
+        serial.print_err("putChar ERR: Framebuffer.address from Limine is null!", .{});
+        return;
+    }
+    const fb_base_ptr: *anyopaque = self.framebuffer.address; // We know it's not null here
 
-    for (0..self.font.height) |_| {
-        var line: u32 = @intCast(offs);
-        var mask = @as(u32, 1) << @truncate(self.font.width + 1);
+    if (@intFromPtr(self.font) == 0) { // Assuming self.font is a raw pointer that could be zero
+        serial.print_err("putChar ERR: self.font pointer is null!", .{});
+        return;
+    }
+    serial.println("putChar DBG: Font metrics: width={d}, height={d} (from self.font)", .{ self.font.width, self.font.height });
 
-        for (0..self.font.width) |_| {
-            const masked_glyph: u32 = glyph[0] & mask;
-            const color: u32 = if (masked_glyph != 0) fg else bg;
+    // --- Font Sanity Checks ---
+    if (self.font.width == 0 or self.font.height == 0) {
+        serial.print_err("putChar ERR: Font width ({d}) or height ({d}) is zero. Aborting char draw.", .{ self.font.width, self.font.height });
+        return;
+    }
+    const bytes_per_font_scanline = self.font.bytesPerLine();
+    if (bytes_per_font_scanline == 0) {
+        serial.print_err("putChar ERR: Font bytesPerLine() returned zero. Aborting char draw.", .{});
+        return;
+    }
 
-            // TODO figure out if this limit is safe, I just made it up
-            var address: []u8 = @as([*]u8, @ptrCast(self.framebuffer.address))[0..65536];
-            address[line + 0] = get_blue(color);
-            address[line + 1] = get_green(color);
-            address[line + 2] = get_red(color);
+    // --- Framebuffer Metrics ---
+    const fb_pitch_bytes: usize = @intCast(self.framebuffer.pitch);
+    const fb_height_pixels: usize = @intCast(self.framebuffer.height);
+    const fb_width_pixels: usize = @intCast(self.framebuffer.width);
+    const fb_total_size_bytes: usize = fb_height_pixels * fb_pitch_bytes;
 
-            // adjust next pixel
-            mask >>= 1;
-            line += self.bpp;
+    if (fb_total_size_bytes == 0) {
+        serial.print_err("putChar ERR: Framebuffer total calculated size is zero. Aborting char draw.", .{});
+        return;
+    }
+    if (self.bpp == 0) {
+        serial.print_err("putChar ERR: self.bpp (bytes per pixel for drawing) is zero. Aborting char draw.", .{});
+        return;
+    }
+
+    // --- Slice and Pointers Setup ---
+    var fb_slice: []u8 = @as([*]u8, @ptrCast(fb_base_ptr))[0..fb_total_size_bytes];
+
+    var current_glyph_scanline_ptr: [*]const u8 = self.font.getGlyph(char_code);
+    if (@intFromPtr(current_glyph_scanline_ptr) == 0) {
+        serial.print_err("putChar ERR: self.font.getGlyph('{c}') returned a NULL pointer!", .{char_code});
+        return;
+    }
+
+    // --- Character Positioning ---
+    const char_start_pixel_y_fb: usize = @intCast(cy * self.font.height);
+    const char_cell_width_for_cx_calc: u32 = self.font.width + 1;
+    const char_start_pixel_x_fb: usize = @intCast(cx * char_cell_width_for_cx_calc);
+
+    // --- Drawing Loop ---
+    var y_font: u32 = 0; // y-offset within the font character glyph (0 to font.height-1)
+    while (y_font < self.font.height) : (y_font += 1) {
+        const current_fb_pixel_y: usize = char_start_pixel_y_fb + y_font;
+
+        if (@intFromPtr(current_glyph_scanline_ptr) == 0) {
+            serial.print_err("putChar ERR: In y_loop, current_glyph_scanline_ptr became NULL! (y_font={d}). Aborting.", .{y_font});
+            return;
         }
 
-        // This segfaults
-        glyph += self.font.bytesPerLine();
-        offs += pitch;
+        // Bounds check: Stop if drawing past framebuffer bottom edge
+        if (current_fb_pixel_y >= fb_height_pixels) {
+            break;
+        }
+
+        var font_pixel_mask = @as(u8, 1) << @truncate(self.font.width - 1); // MSB-first
+
+        var x_font: u32 = 0; // x-offset within the font character glyph (0 to font.width-1)
+        while (x_font < self.font.width) : (x_font += 1) {
+            const current_fb_pixel_x: usize = char_start_pixel_x_fb + x_font;
+
+            // Bounds check: Stop if drawing past framebuffer right edge for this scanline
+            if (current_fb_pixel_x >= fb_width_pixels) {
+                break;
+            }
+
+            const glyph_byte_for_scanline = current_glyph_scanline_ptr[0]; // Potential read OOB
+
+            const pixel_is_set = (glyph_byte_for_scanline & font_pixel_mask) != 0;
+            const color_to_draw = if (pixel_is_set) fg else bg;
+
+            const final_offset_in_fb_slice: usize = current_fb_pixel_y * fb_pitch_bytes +
+                current_fb_pixel_x * @as(usize, self.bpp);
+
+            if (final_offset_in_fb_slice + self.bpp <= fb_slice.len) {
+                fb_slice[final_offset_in_fb_slice + 0] = get_blue(color_to_draw);
+                fb_slice[final_offset_in_fb_slice + 1] = get_green(color_to_draw);
+                fb_slice[final_offset_in_fb_slice + 2] = get_red(color_to_draw);
+                // if self.bpp == 4, handle alpha: fb_slice[final_offset_in_fb_slice + 3] = get_alpha(color_to_draw);
+            } else {
+                serial.println(
+                    "putChar WARN: Skipping pixel write! Offset OOB. char='{c}' ({d},{d}) font_px=({d},{d}) fb_px=({d},{d}) offset={d}+bpp={d} > slice_len={d}",
+                    .{ char_code, cx, cy, x_font, y_font, current_fb_pixel_x, current_fb_pixel_y, final_offset_in_fb_slice, self.bpp, fb_slice.len },
+                );
+            }
+            font_pixel_mask >>= 1;
+        }
+
+        current_glyph_scanline_ptr += bytes_per_font_scanline; // Potential OOB if font data buffer is too small
     }
 }
-
 pub fn puts(
     self: *Framebuffer,
     str: []const u8,
@@ -211,5 +286,8 @@ pub fn init(font: *PSF) void {
             "framebuffer bits per pixel: {d}",
             .{framebuffer.framebuffer.bpp},
         );
+    } else {
+        serial.print_err("Framebuffer request failed", .{});
+        return;
     }
 }

@@ -132,7 +132,7 @@ pub fn init() void {
     idt.init();
 
     pic.remap();
-    //pic.maskAll();
+    pic.maskAll();
     pic.clearMask(0); // Clock
     pic.clearMask(1); // Keyboard
 
