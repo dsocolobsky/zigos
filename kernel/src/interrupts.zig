@@ -7,6 +7,7 @@ const sti = @import("asm.zig").sti;
 const read_cr2 = @import("asm.zig").read_cr2;
 const framebuffer = @import("framebuffer.zig");
 const vmm = @import("vmm.zig");
+const spinner = @import("spinner.zig");
 
 pub var handlers: [256]usize = undefined;
 
@@ -159,6 +160,7 @@ fn page_fault_handler(cpu_state: *CPUState) void {
 
 fn tick() void {
     ticks += 1;
+    spinner.update(ticks);
     if (ticks % 20 == 0) {
         //framebuffer.global_framebuffer.update_panel();
     }

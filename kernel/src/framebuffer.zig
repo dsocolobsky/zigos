@@ -159,6 +159,14 @@ pub fn set_color(self: *Framebuffer, fg: u32, bg: u32) void {
     self.bg_color = bg;
 }
 
+pub fn set_pixel(self: *Framebuffer, x: u32, y: u32, color: u32) void {
+    if (self.fb_ptr == null) return;
+    if (x >= self.framebuffer.width or y >= self.framebuffer.height) return;
+
+    const fb_ptr = self.fb_ptr.?;
+    fb_ptr[y * self.pitch_in_pixels + x] = color;
+}
+
 pub fn init() void {
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
