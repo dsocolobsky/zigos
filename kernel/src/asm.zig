@@ -32,3 +32,23 @@ pub inline fn hlt() void {
 pub inline fn magic_breakpoint() void {
     return asm volatile ("xchgw %bx, %bx");
 }
+
+pub inline fn read_cr3() u64 {
+    return asm volatile ("mov %cr3, %rax"
+        : [value] "={rax}" (-> u64),
+    );
+}
+
+pub inline fn write_cr3(value: u64) void {
+    asm volatile ("mov %rax, %cr3"
+        :
+        : [value] "{rax}" (value),
+        : "memory"
+    );
+}
+
+pub inline fn read_cr2() u64 {
+    return asm volatile ("mov %cr2, %rax"
+        : [value] "={rax}" (-> u64),
+    );
+}
