@@ -146,6 +146,14 @@ pub fn println(self: *Framebuffer, str: []const u8) void {
     self.put_char('\n');
 }
 
+pub fn println_color(self: *Framebuffer, str: []const u8, color: u32) void {
+    const old_fg = self.fg_color;
+    self.fg_color = color;
+    self.print(str);
+    self.put_char('\n');
+    self.fg_color = old_fg;
+}
+
 pub fn set_color(self: *Framebuffer, fg: u32, bg: u32) void {
     self.fg_color = fg;
     self.bg_color = bg;

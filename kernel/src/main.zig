@@ -38,22 +38,28 @@ export fn _start() callconv(.C) noreturn {
         serial.puts("Could not get Kernel Address Response");
     }
 
-    gdt.init();
-
-    interrupts.init();
-
     framebuffer.init();
 
-    framebuffer.global_framebuffer.println("Hello Framebuffer");
-    framebuffer.global_framebuffer.set_color(framebuffer.COLOR_GREEN, framebuffer.COLOR_BLACK);
-    framebuffer.global_framebuffer.println("Colored text test");
+    framebuffer.global_framebuffer.print("Initializing GDT...");
+    gdt.init();
+    framebuffer.global_framebuffer.println_color(" OK", framebuffer.COLOR_GREEN);
 
+    framebuffer.global_framebuffer.print("Initializing Interrupts...");
+    interrupts.init();
+    framebuffer.global_framebuffer.println_color(" OK", framebuffer.COLOR_GREEN);
+
+    framebuffer.global_framebuffer.print("Initializing PMM...");
     pmm.init();
+    framebuffer.global_framebuffer.println_color(" OK", framebuffer.COLOR_GREEN);
 
-    vmm.init() catch {
+    framebuffer.global_framebuffer.print("Initializing VMM...");
+    if (vmm.init()) |_| {
+        framebuffer.global_framebuffer.println_color(" OK", framebuffer.COLOR_GREEN);
+    } else |_| {
+        framebuffer.global_framebuffer.println_color(" ERROR", framebuffer.COLOR_RED);
         serial.print_err("Failed to initialize VMM", .{});
         halt();
-    };
+    }
 
     // We're done, just hang...
     halt();
