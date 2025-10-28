@@ -7,10 +7,8 @@ Uses the [Limine](https://limine-bootloader.org/) bootloader which already leave
 ## Requirements
 zig `0.14.X`, standard build tools, xorriso, qemu-system-x86_64 and/or bochs.
 
-You may need to run 
-
 ## Running
-} Run `make limine` at least once to download Limine as a local dependency
+* Run `make limine` at least once to download Limine as a local dependency
 * `make run` compiles and runs in QEMU
 * `make bochs` compiles and runs in Bochs
 
