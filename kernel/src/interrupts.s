@@ -65,6 +65,8 @@ interrupt_%+%1:
     jmp interrupt_common
 %endmacro
 
+section .text
+
 extern interrupt_handler
 interrupt_no_err 0
 interrupt_no_err 1
@@ -109,14 +111,15 @@ interrupt_common:
     swapgs
     push_all
     mov rdi, rsp
-    call interrupt_handler
+    lea rax, [rel interrupt_handler]
+    call rax
     mov rsp, rax
     pop_all
     add rsp, 16 ; vector and error code
     swapgs
     iretq
 
-section .data
+section .text
 global interrupt_vector
 interrupt_vector:
 %assign i 0 

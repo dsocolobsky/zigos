@@ -4,7 +4,7 @@ pub fn build_nasm(comptime path: []const u8, comptime name: []const u8, exe: *st
     var alloc = std.heap.GeneralPurposeAllocator(.{}){};
     const output = "./zig-cache/nasm/" ++ name ++ ".o";
     var child = std.process.Child.init(
-        &[_][]const u8{ "nasm", path, "-f", "elf64", "-w+all", "-Werror", "-o", output },
+        &[_][]const u8{ "nasm", path, "-f", "elf64", "-w+all", "-Werror", "-w-reloc-rel-dword", "-w-reloc-abs-qword", "-o", output },
         alloc.allocator(),
     );
     _ = try child.spawnAndWait();
@@ -66,7 +66,5 @@ pub fn build(b: *std.Build) !void {
     std.fs.cwd().makePath("./zig-cache/nasm") catch {};
     try build_nasm("./src/interrupts.s", "interrupts", kernel, b);
 
-    // Link Tamsyn font
-    kernel.addObjectFile(b.path("./tamsyn.o"));
     b.installArtifact(kernel);
 }
