@@ -20,6 +20,7 @@ rows: u32 = 0,
 
 fg_color: u32 = 0xFFFFFF,
 bg_color: u32 = 0x000000,
+cursor_visible: bool = true,
 
 pub const COLOR_RED: u32 = 0x00_FF_00_00;
 pub const COLOR_GREEN: u32 = 0x00_00_FF_00;
@@ -99,13 +100,18 @@ pub fn newline(self: *Framebuffer) void {
 pub fn put_char(self: *Framebuffer, c: u8) void {
     if (self.fb_ptr == null) return;
 
+    // Hide cursor before drawing character
+    self.hide_cursor();
+
     switch (c) {
         '\n' => {
             self.newline();
+            self.draw_cursor();
             return;
         },
         '\r' => {
             self.cursor_x = 0;
+            self.draw_cursor();
             return;
         },
         '\t' => {
@@ -122,6 +128,7 @@ pub fn put_char(self: *Framebuffer, c: u8) void {
                 self.cursor_x -= 1;
                 self.draw_char(' ', self.cursor_x, self.cursor_y);
             }
+            self.draw_cursor();
             return;
         },
         else => {},
@@ -133,6 +140,9 @@ pub fn put_char(self: *Framebuffer, c: u8) void {
     if (self.cursor_x >= self.cols) {
         self.newline();
     }
+
+    // Show cursor after drawing character
+    self.draw_cursor();
 }
 
 pub fn print(self: *Framebuffer, str: []const u8) void {
@@ -167,6 +177,42 @@ pub fn set_pixel(self: *Framebuffer, x: u32, y: u32, color: u32) void {
     fb_ptr[y * self.pitch_in_pixels + x] = color;
 }
 
+pub fn draw_cursor(self: *Framebuffer) void {
+    if (!self.cursor_visible or self.fb_ptr == null) return;
+
+    const fb_ptr = self.fb_ptr.?;
+    const pixel_x = self.cursor_x * self.char_width;
+    const pixel_y = self.cursor_y * self.char_height;
+
+    // Draw a vertical line cursor (|)
+    var y: u32 = 0;
+    while (y < self.char_height) : (y += 1) {
+        const actual_y = pixel_y + y;
+        if (actual_y >= self.framebuffer.height) break;
+        if (pixel_x >= self.framebuffer.width) break;
+
+        fb_ptr[actual_y * self.pitch_in_pixels + pixel_x] = self.fg_color;
+    }
+}
+
+pub fn hide_cursor(self: *Framebuffer) void {
+    if (self.fb_ptr == null) return;
+
+    const fb_ptr = self.fb_ptr.?;
+    const pixel_x = self.cursor_x * self.char_width;
+    const pixel_y = self.cursor_y * self.char_height;
+
+    // Clear the cursor area
+    var y: u32 = 0;
+    while (y < self.char_height) : (y += 1) {
+        const actual_y = pixel_y + y;
+        if (actual_y >= self.framebuffer.height) break;
+        if (pixel_x >= self.framebuffer.width) break;
+
+        fb_ptr[actual_y * self.pitch_in_pixels + pixel_x] = self.bg_color;
+    }
+}
+
 pub fn init() void {
     if (framebuffer_request.response) |framebuffer_response| {
         if (framebuffer_response.framebuffer_count < 1) {
@@ -192,6 +238,7 @@ pub fn init() void {
             .rows = @intCast(framebuffer_ptr[0].height / 16),
             .fg_color = COLOR_WHITE,
             .bg_color = COLOR_BLACK,
+            .cursor_visible = true,
         };
 
         global_framebuffer.clear();

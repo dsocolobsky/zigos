@@ -61,6 +61,11 @@ export fn _start() callconv(.C) noreturn {
         halt();
     }
 
-    // We're done, just hang...
+    framebuffer.global_framebuffer.println_color("\nInitialization OK", framebuffer.COLOR_GREEN);
+    framebuffer.global_framebuffer.print("> ");
+    framebuffer.global_framebuffer.draw_cursor();
+
+    // Enable interrupts and loop
+    asm volatile ("sti");
     halt();
 }

@@ -22,6 +22,10 @@ You may need to run
 * Loading .sym font and printing text
 * Keyboard interrupts
 * Basic framebuffer printing
+* VMM 4-level paging
+* Type things into the screen
 
 ## Current TODO
-* [ ] Fix pmm pagefault
+* Console atm is too basic, proper delete, cursor, scroll, etc.
+* Processes ?
+* Filesystem ?
