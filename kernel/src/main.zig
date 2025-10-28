@@ -4,7 +4,6 @@ const framebuffer = @import("framebuffer.zig");
 const serial = @import("serial.zig");
 const gdt = @import("gdt.zig");
 const interrupts = @import("interrupts.zig");
-const font = @import("font.zig");
 const hlt = @import("asm.zig").hlt;
 const pmm = @import("pmm.zig");
 
@@ -42,22 +41,11 @@ export fn _start() callconv(.C) noreturn {
 
     interrupts.init();
 
-    const fnt = font.init();
-    if (@intFromPtr(fnt) == 0) {
-        serial.puts("Font PSF is NULL");
-    }
-    fnt.log();
+    framebuffer.init();
 
-    framebuffer.init(fnt);
-
-    framebuffer.puts(
-        &framebuffer.global_framebuffer,
-        "Hello Framebuffer",
-        3,
-        3,
-        framebuffer.COLOR_RED,
-        framebuffer.COLOR_WHITE,
-    );
+    framebuffer.global_framebuffer.println("Hello Framebuffer");
+    framebuffer.global_framebuffer.set_color(framebuffer.COLOR_GREEN, framebuffer.COLOR_BLACK);
+    framebuffer.global_framebuffer.println("Colored text test");
 
     pmm.init();
 

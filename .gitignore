@@ -8,7 +8,6 @@ limine
 bochs.log
 qemu.log
 qemu.out
-kernel/tamsyn.o
 kernel/.zig-cache/
 iso_root/
 limine/

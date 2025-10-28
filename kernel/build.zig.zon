@@ -46,9 +46,5 @@
         "build.zig.zon",
         "src",
         "linked.ld",
-        "tamsyn.o",
-        // For example...
-        //"LICENSE",
-        //"README.md",
     },
 }
