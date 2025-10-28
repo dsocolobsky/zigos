@@ -38,28 +38,65 @@ pub fn init() void {
 
     offset = hhdm_response.?.offset;
 
-    const usable_pages: usize = 0;
-    const reserved_pages: usize = 0;
-    const highest_addr: usize = 0;
+    var usable_pages: usize = 0;
+    var reserved_pages: usize = 0;
+    var highest_addr: usize = 0;
 
-    serial.puts("[pmm] Usable Entries:");
+    serial.puts("[pmm] Memory Map Entries:");
     const entries = memmap_response.entries orelse {
         serial.print_err("memmap_response.entries has null pointer", .{});
         return;
     };
-    for (0..32) |i| {
+
+    const entry_count = memmap_response.entry_count;
+    serial.println("[pmm] Processing {} memory map entries", .{entry_count});
+
+    // First pass: calculate statistics and find highest address
+    for (0..entry_count) |i| {
         const entry = entries[i];
-        if (entry.length > 0) { // I made this up it was usable before
-            serial.println(
-                "[pmm] base: 0x{X}, length: 0x{X}, size: {d}Kb, {d}Mb",
-                .{ entry.base, entry.length, entry.length / 1024, entry.length / 1024 / 1024 },
-            );
-        } else {
-            serial.println(
-                "[pmm] reserved base: 0x{X}, length: 0x{X}",
-                .{ entry.base, entry.length },
-            );
+        const entry_end = entry.base + entry.length;
+
+        // Update highest address
+        if (entry_end > highest_addr) {
+            highest_addr = entry_end;
         }
+
+        // Count pages based on entry type
+        const pages_in_entry = div_roundup(entry.length, PAGE_SIZE);
+
+        switch (entry.type) {
+            .usable => {
+                usable_pages += pages_in_entry;
+                serial.println(
+                    "[pmm] USABLE: base: 0x{X}, length: 0x{X}, size: {d}Kb, {d}Mb",
+                    .{ entry.base, entry.length, entry.length / 1024, entry.length / 1024 / 1024 },
+                );
+            },
+            .bootloader_reclaimable => {
+                usable_pages += pages_in_entry;
+                serial.println(
+                    "[pmm] RECLAIMABLE: base: 0x{X}, length: 0x{X}, size: {d}Kb, {d}Mb",
+                    .{ entry.base, entry.length, entry.length / 1024, entry.length / 1024 / 1024 },
+                );
+            },
+            else => {
+                reserved_pages += pages_in_entry;
+                serial.println(
+                    "[pmm] RESERVED({s}): base: 0x{X}, length: 0x{X}, size: {d}Kb, {d}Mb",
+                    .{ @tagName(entry.type), entry.base, entry.length, entry.length / 1024, entry.length / 1024 / 1024 },
+                );
+            },
+        }
+    }
+
+    // Validate our calculations
+    if (highest_addr == 0) {
+        serial.print_err("[pmm] No memory found in memory map!", .{});
+        return;
+    }
+    if (usable_pages == 0) {
+        serial.print_err("[pmm] No usable memory found!", .{});
+        return;
     }
 
     const highest_page_idx = div_roundup(highest_addr, PAGE_SIZE);
@@ -70,53 +107,77 @@ pub fn init() void {
         .{ highest_addr, highest_page_idx },
     );
     serial.println(
-        "[pmm] Usable memory: {any}MiB",
-        .{(usable_pages * PAGE_SIZE) / 1024 / 1024},
+        "[pmm] Bitmap size: {d}KB ({d} bytes)",
+        .{ bitmap_size / 1024, bitmap_size },
     );
     serial.println(
-        "[pmm] Reserved memory: {any}MiB",
-        .{(reserved_pages * PAGE_SIZE) / 1024 / 1024},
+        "[pmm] Usable memory: {d}MiB ({d} pages)",
+        .{ (usable_pages * PAGE_SIZE) / 1024 / 1024, usable_pages },
+    );
+    serial.println(
+        "[pmm] Reserved memory: {d}MiB ({d} pages)",
+        .{ (reserved_pages * PAGE_SIZE) / 1024 / 1024, reserved_pages },
     );
 
-    // Find the first entry suitable to store the page bitmap
-    var bitmap_start: usize = 0; // Initialize to 0 or another sensible default
+    // Find the first usable entry suitable to store the page bitmap
+    var bitmap_start: usize = 0;
     var found_space_for_bitmap = false;
-    // Iterate again to find space for the bitmap
-    // It's important to use a fresh iteration or ensure the previous one didn't modify entries in a way that affects this search
-    for (0..32) |i| {
+
+    // Second pass: find space for the bitmap in usable memory
+    for (0..entry_count) |i| {
         const entry = entries[i];
-        if (entry.length <= 0) {
+        // Only use USABLE or BOOTLOADER_RECLAIMABLE memory for the bitmap
+        if (entry.type != .usable and entry.type != .bootloader_reclaimable) {
             continue;
         }
-        if (entry.length >= bitmap_size) {
-            bitmap_start = offset + entry.base;
-            entry.base += bitmap_size;
-            entry.length -= bitmap_size;
-            found_space_for_bitmap = true;
-            break;
+        if (entry.length < bitmap_size) {
+            continue;
         }
+
+        bitmap_start = offset + entry.base;
+        // Modify the entry to reserve space for the bitmap
+        entries[i].base += bitmap_size;
+        entries[i].length -= bitmap_size;
+        found_space_for_bitmap = true;
+        serial.println(
+            "[pmm] Allocated bitmap in entry {}: start=0x{X}, size={}KB",
+            .{ i, bitmap_start, bitmap_size / 1024 },
+        );
+        break;
     }
 
     if (!found_space_for_bitmap) {
-        serial.print_err("[pmm] did not find space for the bitmap!", .{});
+        serial.print_err("[pmm] Could not find space for bitmap! Need {}KB", .{bitmap_size / 1024});
         return;
     }
+
+    // Validate bitmap allocation
+    if (bitmap_start == 0) {
+        serial.print_err("[pmm] Invalid bitmap start address!", .{});
+        return;
+    }
+
     serial.println(
-        "[pmm] Bitmap starts at: 0x{X} , has size of {d} Kb.",
+        "[pmm] Bitmap allocated at: 0x{X}, size: {d}KB",
         .{ bitmap_start, bitmap_size / 1024 },
     );
 
-    const total_pages = usable_pages + reserved_pages;
-    bitmap = Bitmap.init(bitmap_start, bitmap_size, total_pages);
+    // Initialize bitmap with only usable pages (not reserved)
+    bitmap = Bitmap.init(bitmap_start, bitmap_size, usable_pages);
     bitmap.set_all_used();
     bitmap.log();
 
-    // Mark all available regions as free in the bitmap
-    for (0..32) |i| {
+    // Mark all usable regions as free in the bitmap
+    for (0..entry_count) |i| {
         const entry = entries[i];
-        if (entry.length <= 0) {
+        // Only mark USABLE and BOOTLOADER_RECLAIMABLE memory as free
+        if (entry.type != .usable and entry.type != .bootloader_reclaimable) {
             continue;
         }
+        if (entry.length == 0) {
+            continue;
+        }
+
         serial.println(
             "[pmm] Marking range: 0x{X} of {d} bytes as free",
             .{ entry.base, entry.length },
@@ -170,18 +231,32 @@ fn sanity_test() void {
 
 /// Returns the first available 4Kb page
 pub fn alloc_page() usize {
-    const addr = offset + bitmap.alloc_page().?;
+    const page_addr = bitmap.alloc_page() orelse {
+        serial.print_err("[pmm] Out of memory! No free pages available", .{});
+        return 0; // Return 0 to indicate failure
+    };
+
+    const addr = offset + page_addr;
     serial.println(
-        "[pmm] Returning page starting at 0x{X}",
-        .{addr},
+        "[pmm] Allocated page at physical: 0x{X}, virtual: 0x{X}",
+        .{ page_addr, addr },
     );
     return addr;
 }
 
 fn free(address: usize) void {
+    if (address == 0) {
+        serial.print_err("[pmm] Attempted to free null address!", .{});
+        return;
+    }
+    if (address < offset) {
+        serial.print_err("[pmm] Invalid address to free: 0x{X} (below HHDM offset)", .{address});
+        return;
+    }
+
     const off = address - offset;
     serial.println(
-        "[pmm] Freeing page for 0x{X} offset 0x{X}",
+        "[pmm] Freeing page: virtual 0x{X} -> physical 0x{X}",
         .{ address, off },
     );
     bitmap.free(off);
